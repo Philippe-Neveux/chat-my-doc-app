@@ -8,5 +8,33 @@ dependencies = [
     "chainlit>=2.6.2",
     "langchain>=0.1.0",
     "langchain-google-genai>=1.0.0",
+    "loguru>=0.7.3",
     "python-dotenv>=1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-mock>=3.14.1",
+    "ruff>=0.12.4",
+    "types-requests>=2.32.4.20250611",
+]
+
+[tool.uv]
+package = true
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src/caht_my_doc_app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
 ]
