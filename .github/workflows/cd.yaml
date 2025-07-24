@@ -1,0 +1,55 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: GCP auth
+          uses: google-github-actions/auth@v2
+          with:
+            credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+        - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v2
+
+        - name: Authorize Docker push
+          run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
+
+        - name: Build Docker image
+          run: |
+            make build_docker_image
+
+        - name: Tag Docker image
+          run: |
+            make tag_docker_image_for_gcp
+
+        - name: Push Docker image to Artifact Registry
+          run: |
+            make push_docker_image_to_gcp
+          
+
+        - id: 'deploy'
+          name: Deploy to Cloud Run
+          uses: google-github-actions/deploy-cloudrun@v2
+          with:
+            service: ${{ vars.SERVICE_NAME }}
+            region: ${{ vars.GCP_REGION }}
+            image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/api-images/${{ vars.SERVICE_NAME }}:latest
+    
+        - name: Deployment URL check
+          run: 'curl "${{ steps.deploy.outputs.url }}"'
