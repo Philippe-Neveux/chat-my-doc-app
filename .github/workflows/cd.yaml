@@ -50,6 +50,7 @@ jobs:
             service: ${{ vars.SERVICE_NAME }}
             region: ${{ vars.GCP_REGION }}
             image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/api-images/${{ vars.SERVICE_NAME }}:latest
+            flags: --no-allow-unauthenticated
     
         - name: Deployment URL check
           run: 'curl "${{ steps.deploy.outputs.url }}"'
