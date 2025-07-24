@@ -1,5 +1,6 @@
 import chainlit as cl
 
+
 def get_conversation_history_with_current_prompt(content: str) -> str:
     """
     Retrieve the conversation history from the user session.

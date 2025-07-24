@@ -14,11 +14,11 @@ import chainlit as cl
 from dotenv import load_dotenv
 from loguru import logger
 
-from chat_my_doc_app.llms import CloudRunLLM
 from app.memory import (
     get_conversation_history_with_current_prompt,
-    update_conversation_history_from_llm_content
+    update_conversation_history_from_llm_content,
 )
+from chat_my_doc_app.llms import CloudRunLLM
 
 load_dotenv()
 
