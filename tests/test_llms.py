@@ -34,12 +34,12 @@ class TestCloudRunLLM:
         }
         mock_post.return_value = mock_response
         
-        result = self.llm._call("test prompt")
+        result = self.llm._call("test prompt", model_name="a model name")
         
         assert result == "Hello, this is a test response"
         mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini",
-            params={"prompt": "test prompt"}
+            f"{self.api_url}/gemini-model",
+            params={"prompt": "test prompt", "model_name": "a model name"}
         )
     
     @patch('requests.post')
@@ -127,13 +127,17 @@ class TestCloudRunLLM:
         }
         mock_post.return_value = mock_response
         
-        result = self.llm._call("test prompt", stop=["stop1", "stop2"])
+        result = self.llm._call(
+            "test prompt",
+            model_name='a model',
+            stop=["stop1", "stop2"]
+        )
         
         assert result == "Response with stop parameter"
         # Verify the stop parameter doesn't affect the API call
         mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini",
-            params={"prompt": "test prompt"}
+            f"{self.api_url}/gemini-model",
+            params={"prompt": "test prompt", "model_name": "a model"}
         )
     
     @patch('requests.post')
@@ -173,12 +177,12 @@ class TestCloudRunLLM:
         }
         mock_post.return_value = mock_response
         
-        result = self.llm._call("")
+        result = self.llm._call("", model_name="a model name")
         
         assert result == "Empty prompt response"
         mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini",
-            params={"prompt": ""}
+            f"{self.api_url}/gemini-model",
+            params={"prompt": "", "model_name": "a model name"}
         )
     
     @patch('requests.post')

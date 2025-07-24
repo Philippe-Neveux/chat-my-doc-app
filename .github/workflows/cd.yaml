@@ -51,6 +51,8 @@ jobs:
             region: ${{ vars.GCP_REGION }}
             image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/${{ vars.SERVICE_NAME }}:latest
             flags: --no-allow-unauthenticated
+            env_vars: |
+              CLOUD_RUN_API_URL=${{ secrets.CLOUD_RUN_API_URL }}
     
         - name: Deployment URL check
           run: 'curl "${{ steps.deploy.outputs.url }}"'
