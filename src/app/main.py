@@ -32,10 +32,11 @@ llm = CloudRunLLM(api_url=CLOUD_RUN_API_URL)
 @cl.on_chat_start
 async def start():
     """
-    Initialize a new chat session.
+    Initialize a new chat session with model selection.
     
     This function is called when a user starts a new chat session. It initializes
-    an empty conversation history in the user session and sends a welcome message.
+    an empty conversation history in the user session, creates a model selector,
+    and sends a welcome message.
     
     The conversation history is stored per user session to maintain context
     throughout the conversation.
@@ -43,8 +44,41 @@ async def start():
     # Initialize conversation history in user session
     cl.user_session.set("conversation_history", [])
     
+    # Create model selection component
+    settings = await cl.ChatSettings(
+        [
+            cl.input_widget.Select(
+                id="model",
+                label="Select Model",
+                values=["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-pro"],
+                initial_index=0,
+            ),
+        ]
+    ).send()
+    
+    # Store initial model selection
+    cl.user_session.set("selected_model", settings["model"])
+    
     await cl.Message(
-        content="Hello! I'm your AI assistant powered by Gemini. How can I help you today?"
+        content=f"Hello! I'm your AI assistant powered by {settings['model']}. You can change the model using the settings panel. How can I help you today?"
+    ).send()
+
+@cl.on_settings_update
+async def setup_agent(settings):
+    """
+    Handle model selection changes from the settings panel.
+    
+    Updates the selected model in the user session and notifies the user
+    of the change.
+    
+    Args:
+        settings (dict): Updated settings from the UI
+    """
+    selected_model = settings["model"]
+    cl.user_session.set("selected_model", selected_model)
+    
+    await cl.Message(
+        content=f"Model switched to: {selected_model}"
     ).send()
 
 @cl.on_message
@@ -79,8 +113,13 @@ async def main(message: cl.Message):
         # Get conversation history with current prompt included
         prompt = get_conversation_history_with_current_prompt(message.content)
         
-        # Invoke LLM with full conversation context
-        response = llm.invoke(prompt)
+        # Get selected model from user session
+        selected_model = cl.user_session.get("selected_model", "gemini-2.0-flash-lite")
+        
+        logger.debug(f"Selected model: {selected_model}")
+        
+        # Invoke LLM with full conversation context and selected model
+        response = llm.invoke(prompt, model_name=selected_model)
         llm_content = str(response)
         
         # Update conversation history with LLM response

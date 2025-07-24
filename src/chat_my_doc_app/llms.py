@@ -25,10 +25,13 @@ class CloudRunLLM(LLM):
     ) -> str:
         import requests
         
+        # Get model from kwargs if provided, otherwise use default
+        model_name = kwargs.get("model_name", "gemini-2.0-flash-lite")
+        
         try:
             response = requests.post(
-                f"{self.api_url}/gemini",
-                params={"prompt": prompt}
+                f"{self.api_url}/gemini-model",
+                params={"prompt": prompt, "model_name": model_name}
             )
             
             if response.status_code == 200:
