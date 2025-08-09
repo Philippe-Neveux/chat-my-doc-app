@@ -25,15 +25,3 @@ def add_to_history(
         role=role,
         parts=[types.Part(text=content)]
     ))
-
-def build_conversation_context(
-    history: List[types.Content]
-) -> str:
-    """Build conversation context from history."""
-    context_parts = []
-    for msg in history:
-        if msg["role"] == "user":
-            context_parts.append(f"Human: {msg['content']}")
-        elif msg["role"] == "assistant":
-            context_parts.append(f"Assistant: {msg['content']}")
-    return "\n".join(context_parts)
