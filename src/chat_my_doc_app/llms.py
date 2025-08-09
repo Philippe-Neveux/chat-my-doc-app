@@ -4,8 +4,6 @@ Custom LangChain Chat Model for deployed Gemini API.
 This module provides a custom LangChain BaseChatModel implementation
 that connects to your deployed Gemini API with streaming support.
 """
-
-import os
 from typing import Any, AsyncIterator, Iterator, List, Optional
 
 import aiohttp
@@ -15,7 +13,7 @@ from langchain_core.callbacks.manager import (
     CallbackManagerForLLMRun,
 )
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.outputs.chat_generation import ChatGenerationChunk
 from loguru import logger

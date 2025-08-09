@@ -16,8 +16,8 @@ from dotenv import load_dotenv
 
 from chat_my_doc_app.chats import (
     chat_with_gemini_stream,
+    clear_conversation_history,
     get_available_models,
-    clear_conversation_history
 )
 
 load_dotenv()

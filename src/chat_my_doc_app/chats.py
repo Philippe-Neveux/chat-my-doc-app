@@ -6,13 +6,13 @@ a custom LangChain BaseChatModel that connects to your deployed API.
 """
 
 import os
-from typing import List, Dict, Iterator
+from typing import Dict, Iterator, List
 
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from loguru import logger
 
-from .custom_llm import CustomGeminiChat
+from .llms import CustomGeminiChat
 
 load_dotenv()
 
