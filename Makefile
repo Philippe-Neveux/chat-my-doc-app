@@ -1,8 +1,8 @@
 app:
-	uv run chainlit run src/app/main.py
+	uv run python src/app/main.py
 
 app-debug:
-	uv run chainlit run src/app/main.py -d
+	uv run chainlit run src/app/main.py -d --port 8001 -w
 
 test:
 	uv run pytest -v --cov=src --cov-report=html --cov-report=term

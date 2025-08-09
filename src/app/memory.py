@@ -1,29 +1,39 @@
-import chainlit as cl
+from typing import List, Dict
+
+from google.genai import types
 
 
-def get_conversation_history_with_current_prompt(content: str) -> str:
-    """
-    Retrieve the conversation history from the user session.
-    If no history exists, return an empty list.
-    """
-    # Get conversation history from user session
-    conversation_history = cl.user_session.get("conversation_history") or []
-    
-    conversation_history.append(f"Human: {content}")
-    
-    # Build conversation context
-    conversation_context = "\n".join(conversation_history)
-    
-    # If this is the first message, don't include empty history
-    return (
-        content
-        if len(conversation_history) == 1
-        else f"{conversation_context}\nAssistant:"
-    )
+def get_conversation_history(
+    session_id: str,
+    conversation_histories: Dict[str, List[types.Content]]
+) -> List[types.Content]:
+    """Get conversation history for a session."""
+    if session_id not in conversation_histories:
+        conversation_histories[session_id] = []
+    return conversation_histories[session_id]
 
-def update_conversation_history_from_llm_content(llm_content: str):
-    conversation_history = cl.user_session.get("conversation_history") or []
+def add_to_history(
+    session_id: str,
+    role: str, 
+    content: str,
+    conversation_histories: Dict[str, List[types.Content]]
+) -> None:
+    """Add a message to conversation history."""
+    history = get_conversation_history(session_id, conversation_histories)
     
-    conversation_history.append(f"Assistant: {llm_content}")
-    
-    cl.user_session.set("conversation_history", conversation_history)
+    history.append(types.Content(
+        role=role,
+        parts=[types.Part(text=content)]
+    ))
+
+def build_conversation_context(
+    history: List[types.Content]
+) -> str:
+    """Build conversation context from history."""
+    context_parts = []
+    for msg in history:
+        if msg["role"] == "user":
+            context_parts.append(f"Human: {msg['content']}")
+        elif msg["role"] == "assistant":
+            context_parts.append(f"Assistant: {msg['content']}")
+    return "\n".join(context_parts)
