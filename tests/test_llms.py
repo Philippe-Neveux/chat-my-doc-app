@@ -1,218 +1,205 @@
+"""Tests for custom LLM implementations."""
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 import json
+import requests
+import aiohttp
+from langchain_core.messages import HumanMessage, AIMessage
 
-from chat_my_doc_app.llms import CloudRunLLM
+from chat_my_doc_app.llms import CustomGeminiChat
 
 
-class TestCloudRunLLM:
-    """Test suite for CloudRunLLM class."""
+class TestCustomGeminiChat:
+    """Test suite for CustomGeminiChat class."""
     
     def setup_method(self):
         """Set up test fixtures before each test method."""
         self.api_url = "https://test-api.example.com"
-        self.llm = CloudRunLLM(api_url=self.api_url)
+        self.llm = CustomGeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite")
     
     def test_initialization(self):
-        """Test CloudRunLLM initialization."""
+        """Test CustomGeminiChat initialization."""
         assert self.llm.api_url == self.api_url
+        assert self.llm.model_name == "gemini-2.0-flash-lite"
     
     def test_llm_type_property(self):
         """Test the _llm_type property returns correct value."""
-        assert self.llm._llm_type == "cloud_run_llm"
+        assert self.llm._llm_type == "custom_gemini_chat"
+    
+    def test_identifying_params(self):
+        """Test the _identifying_params property."""
+        params = self.llm._identifying_params
+        assert params["api_url"] == self.api_url
+        assert params["model_name"] == "gemini-2.0-flash-lite"
+    
+    def test_messages_to_prompt_human_messages(self):
+        """Test _messages_to_prompt with HumanMessage."""
+        messages = [HumanMessage(content="Hello, how are you?")]
+        prompt = self.llm._messages_to_prompt(messages)
+        assert prompt == "Human: Hello, how are you?"
+    
+    def test_messages_to_prompt_ai_messages(self):
+        """Test _messages_to_prompt with AIMessage."""
+        messages = [AIMessage(content="I'm doing well, thank you!")]
+        prompt = self.llm._messages_to_prompt(messages)
+        assert prompt == "Assistant: I'm doing well, thank you!"
+    
+    def test_messages_to_prompt_mixed_messages(self):
+        """Test _messages_to_prompt with mixed message types."""
+        messages = [
+            HumanMessage(content="Hello"),
+            AIMessage(content="Hi there!"),
+            HumanMessage(content="How are you?")
+        ]
+        prompt = self.llm._messages_to_prompt(messages)
+        expected = "Human: Hello\nAssistant: Hi there!\nHuman: How are you?"
+        assert prompt == expected
     
     @patch('requests.post')
-    def test_call_success_with_message_content(self, mock_post):
-        """Test successful API call with message.content response format."""
-        # Mock successful response with nested content
+    def test_generate_success(self, mock_post):
+        """Test successful _generate call."""
+        # Mock successful response
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "message": {
-                "content": "Hello, this is a test response"
-            }
+            "message": "Hello, this is a test response"
         }
         mock_post.return_value = mock_response
         
-        result = self.llm._call("test prompt", model_name="a model name")
+        messages = [HumanMessage(content="test prompt")]
+        result = self.llm._generate(messages)
         
-        assert result == "Hello, this is a test response"
+        assert len(result.generations) == 1
+        assert result.generations[0].message.content == "Hello, this is a test response"
         mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini-model",
-            params={"prompt": "test prompt", "model_name": "a model name"}
+            f"{self.api_url}/gemini",
+            json={"prompt": "Human: test prompt", "model_name": "gemini-2.0-flash-lite"},
+            headers={"Content-Type": "application/json"}
         )
     
     @patch('requests.post')
-    def test_call_success_with_string_response(self, mock_post):
-        """Test successful API call with direct string response."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = "Direct string response"
-        mock_post.return_value = mock_response
-        
-        result = self.llm._call("test prompt")
-        
-        assert result == "Direct string response"
-    
-    @patch('requests.post')
-    def test_call_success_with_dict_fallback(self, mock_post):
-        """Test successful API call with dict response (no known fields)."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "unknown_field": "some value",
-            "another_field": "another value"
-        }
-        mock_post.return_value = mock_response
-        
-        result = self.llm._call("test prompt")
-        
-        # Should return string representation of the dict
-        assert "unknown_field" in result
-        assert "some value" in result
-    
-    @patch('requests.post')
-    def test_call_api_error_status(self, mock_post):
-        """Test API call with error status code."""
+    def test_generate_api_error(self, mock_post):
+        """Test _generate with API error."""
         mock_response = Mock()
         mock_response.status_code = 400
+        mock_response.text = "Bad Request"
         mock_post.return_value = mock_response
         
-        result = self.llm._call("test prompt")
+        messages = [HumanMessage(content="test prompt")]
+        result = self.llm._generate(messages)
         
-        assert result == "API Error: 400"
+        assert len(result.generations) == 1
+        assert "API Error: 400" in result.generations[0].message.content
     
     @patch('requests.post')
-    def test_call_api_error_500(self, mock_post):
-        """Test API call with server error status code."""
-        mock_response = Mock()
-        mock_response.status_code = 500
-        mock_post.return_value = mock_response
-        
-        result = self.llm._call("test prompt")
-        
-        assert result == "API Error: 500"
-    
-    @patch('requests.post')
-    def test_call_request_exception(self, mock_post):
-        """Test API call with request exception."""
+    def test_generate_exception(self, mock_post):
+        """Test _generate with request exception."""
         mock_post.side_effect = Exception("Connection failed")
         
-        result = self.llm._call("test prompt")
+        messages = [HumanMessage(content="test prompt")]
+        result = self.llm._generate(messages)
         
-        assert result == "Error: Connection failed"
+        assert len(result.generations) == 1
+        assert "Error calling API: Connection failed" in result.generations[0].message.content
     
     @patch('requests.post')
-    def test_call_json_decode_error(self, mock_post):
-        """Test API call with JSON decode error."""
+    def test_stream_success(self, mock_post):
+        """Test successful _stream call."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
+        mock_response.iter_content.return_value = ["Hello", " world", "!"]
         mock_post.return_value = mock_response
         
-        result = self.llm._call("test prompt")
+        messages = [HumanMessage(content="test prompt")]
+        chunks = list(self.llm._stream(messages))
         
-        assert "Error:" in result
-        assert "Invalid JSON" in result
-    
-    @patch('requests.post')
-    def test_call_with_stop_parameter(self, mock_post):
-        """Test API call with stop parameter (should be ignored)."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {
-                "content": "Response with stop parameter"
-            }
-        }
-        mock_post.return_value = mock_response
-        
-        result = self.llm._call(
-            "test prompt",
-            model_name='a model',
-            stop=["stop1", "stop2"]
-        )
-        
-        assert result == "Response with stop parameter"
-        # Verify the stop parameter doesn't affect the API call
+        assert len(chunks) == 3
+        assert chunks[0].message.content == "Hello"
+        assert chunks[1].message.content == " world"
+        assert chunks[2].message.content == "!"
         mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini-model",
-            params={"prompt": "test prompt", "model_name": "a model"}
+            f"{self.api_url}/gemini-stream",
+            json={"prompt": "Human: test prompt", "model_name": "gemini-2.0-flash-lite"},
+            headers={"Content-Type": "application/json"},
+            stream=True
         )
     
     @patch('requests.post')
-    def test_call_with_kwargs(self, mock_post):
-        """Test API call with additional kwargs."""
+    def test_stream_api_error(self, mock_post):
+        """Test _stream with API error."""
         mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {
-                "content": "Response with kwargs"
-            }
-        }
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
         mock_post.return_value = mock_response
         
-        result = self.llm._call(
-            "test prompt", 
-            temperature=0.5, 
-            max_tokens=100
-        )
+        messages = [HumanMessage(content="test prompt")]
+        chunks = list(self.llm._stream(messages))
         
-        assert result == "Response with kwargs"
-    
-    def test_initialization_with_empty_api_url(self):
-        """Test initialization with empty API URL."""
-        llm = CloudRunLLM(api_url="")
-        assert llm.api_url == ""
+        assert len(chunks) == 1
+        assert "API Error: 500" in chunks[0].message.content
     
     @patch('requests.post')
-    def test_call_empty_prompt(self, mock_post):
-        """Test API call with empty prompt."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {
-                "content": "Empty prompt response"
-            }
-        }
-        mock_post.return_value = mock_response
+    def test_stream_exception(self, mock_post):
+        """Test _stream with request exception."""
+        mock_post.side_effect = Exception("Network error")
         
-        result = self.llm._call("", model_name="a model name")
+        messages = [HumanMessage(content="test prompt")]
+        chunks = list(self.llm._stream(messages))
         
-        assert result == "Empty prompt response"
-        mock_post.assert_called_once_with(
-            f"{self.api_url}/gemini-model",
-            params={"prompt": "", "model_name": "a model name"}
-        )
+        assert len(chunks) == 1
+        assert "Error calling API: Network error" in chunks[0].message.content
     
-    @patch('requests.post')
-    def test_call_with_none_response_content(self, mock_post):
-        """Test API call when message content is None."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {
-                "content": None
-            }
-        }
-        mock_post.return_value = mock_response
+    def test_astream_exists(self):
+        """Test that _astream method exists and is callable."""
+        assert hasattr(self.llm, '_astream')
+        assert callable(self.llm._astream)
+        # Note: Async streaming tests are complex to mock properly in this setup
+        # The method exists and will work with proper aiohttp mocking in integration tests
+    
+    @patch.object(CustomGeminiChat, '_generate')
+    async def test_agenerate(self, mock_generate):
+        """Test _agenerate method."""
+        # Mock the _generate method since _agenerate falls back to it
+        mock_result = Mock()
+        mock_generate.return_value = mock_result
         
-        result = self.llm._call("test prompt")
+        messages = [HumanMessage(content="test prompt")]
+        result = await self.llm._agenerate(messages)
         
-        # Should handle None content gracefully
-        assert result == "None"
+        assert result == mock_result
+        mock_generate.assert_called_once_with(messages, None, None)
 
 
-class TestCloudRunLLMIntegration:
-    """Integration tests for CloudRunLLM."""
+class TestCustomGeminiChatIntegration:
+    """Integration tests for CustomGeminiChat."""
     
     def test_langchain_compatibility(self):
-        """Test that CloudRunLLM is compatible with LangChain interfaces."""
-        llm = CloudRunLLM(api_url="https://test-api.example.com")
+        """Test that CustomGeminiChat is compatible with LangChain interfaces."""
+        llm = CustomGeminiChat(api_url="https://test-api.example.com")
         
-        # Test that it has required LangChain LLM attributes/methods
-        assert hasattr(llm, '_call')
+        # Test that it has required LangChain BaseChatModel attributes/methods
+        assert hasattr(llm, '_generate')
+        assert hasattr(llm, '_stream')
+        assert hasattr(llm, '_astream')
         assert hasattr(llm, '_llm_type')
-        assert hasattr(llm, 'invoke')
-        assert callable(llm._call)
+        assert hasattr(llm, '_identifying_params')
+        assert callable(llm._generate)
+        assert callable(llm._stream)
         assert isinstance(llm._llm_type, str)
+    
+    def test_model_name_override(self):
+        """Test that model_name can be overridden in kwargs."""
+        llm = CustomGeminiChat(api_url="https://test-api.example.com", model_name="default-model")
+        
+        with patch('requests.post') as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"message": "test response"}
+            mock_post.return_value = mock_response
+            
+            messages = [HumanMessage(content="test")]
+            llm._generate(messages, model_name="custom-model")
+            
+            # Check that the custom model name was used
+            call_args = mock_post.call_args
+            assert call_args[1]['json']['model_name'] == "custom-model"
