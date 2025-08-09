@@ -113,9 +113,11 @@ def main():
     interface = create_chat_interface()
     
     # Launch the interface
+    # Use PORT environment variable if available (for Cloud Run), otherwise default to 8000
+    port = int(os.getenv("PORT", 8000))
     interface.launch(
         server_name="0.0.0.0",
-        server_port=8000,
+        server_port=port,
         share=False,
         show_error=True
     )

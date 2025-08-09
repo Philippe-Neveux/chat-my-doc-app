@@ -2,7 +2,7 @@ app:
 	uv run python src/app/main.py
 
 app-debug:
-	uv run chainlit run src/app/main.py -d --port 8001 -w
+	PORT=8001 uv run python src/app/main.py
 
 test:
 	uv run pytest -v --cov=src --cov-report=html --cov-report=term
@@ -16,7 +16,7 @@ mypy:
 GCP_REGION ?= australia-southeast1
 GCP_PROJECT_ID ?= gen-ai-466406
 GCP_ARTIFACT_REPOSITORY ?= app-images
-DOCKER_IMAGE_NAME ?= rag-app
+DOCKER_IMAGE_NAME ?= chat-my-doc-app
 
 build_docker_image:
 	docker image build --no-cache . --tag $(DOCKER_IMAGE_NAME):latest

@@ -8,7 +8,10 @@ ADD . /app
 WORKDIR /app
 RUN uv sync --locked
 
-# Cloud Run will set PORT environment variable, default to 8080
-EXPOSE 8080
+# Cloud Run will set PORT environment variable, default to 8000
+# Gradio typically uses port 7860, but we'll use 8000 for consistency
+EXPOSE 8000
 
-CMD ["sh", "-c", "uv run chainlit run src/app/main.py --host 0.0.0.0 --port ${PORT:-8080} --headless"]
+# Run the Gradio app
+# The PORT environment variable will be automatically used by main.py
+CMD ["uv", "run", "python", "src/app/main.py"]
