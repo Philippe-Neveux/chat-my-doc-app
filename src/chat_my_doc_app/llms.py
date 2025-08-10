@@ -20,7 +20,7 @@ from loguru import logger
 from pydantic import Field
 
 
-class CustomGeminiChat(BaseChatModel):
+class GeminiChat(BaseChatModel):
     """Custom LangChain Chat Model for your deployed Gemini API."""
     
     api_url: str = Field(..., description="Base URL for the deployed API")
@@ -31,7 +31,7 @@ class CustomGeminiChat(BaseChatModel):
     
     @property
     def _llm_type(self) -> str:
-        return "custom_gemini_chat"
+        return "gemini_chat"
     
     @property
     def _identifying_params(self) -> dict:

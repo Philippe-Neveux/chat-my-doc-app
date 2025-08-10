@@ -2,7 +2,7 @@ app:
 	uv run python src/app/main.py
 
 app-debug:
-	PORT=8001 uv run python src/app/main.py
+	uv run python src/app/main.py --debug
 
 test:
 	uv run pytest -v --cov=src --cov-report=html --cov-report=term

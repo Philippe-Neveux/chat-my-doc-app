@@ -12,7 +12,9 @@ import os
 from typing import List
 
 import gradio as gr
+import typer
 from dotenv import load_dotenv
+from typing_extensions import Annotated
 
 from chat_my_doc_app.chats import (
     chat_with_gemini_stream,
@@ -35,7 +37,7 @@ def create_chat_interface():
     
     def respond(
         message: str,
-        history: List[List[str]],
+        history: List[dict],
         model_name: str
     ):
         """Handle user message and generate response."""
@@ -46,8 +48,11 @@ def create_chat_interface():
         partial_response = ""
         for chunk in chat_with_gemini_stream(message, model_name, session_id):
             partial_response += chunk
-            # Update the history with current partial response
-            new_history = history + [[message, partial_response]]
+            # Update the history with current partial response in messages format
+            new_history = history + [
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": partial_response}
+            ]
             yield "", new_history
     
     # Create the interface
@@ -61,7 +66,7 @@ def create_chat_interface():
                     value=[],
                     height=600,
                     show_label=False,
-                    bubble_full_width=False
+                    type="messages"  # Use new messages format instead of deprecated tuples
                 )
                 
                 with gr.Row():
@@ -108,19 +113,86 @@ def create_chat_interface():
     
     return interface
 
-def main():
-    """Main entry point for the application."""
+# Create Typer app
+app = typer.Typer(help="Chat My Doc App - Gradio interface for chatting with Gemini AI")
+
+def validate_port(value: int | None) -> int | None:
+    """Validate port number is in valid range."""
+    if value is None:
+        return None
+    if not 1 <= value <= 65535:
+        raise typer.BadParameter("Port must be between 1 and 65535")
+    return value
+
+def validate_host(value: str) -> str:
+    """Validate host format."""
+    import socket
+    if value not in ["0.0.0.0", "localhost", "127.0.0.1"]:
+        # Try to validate as IP address
+        try:
+            socket.inet_aton(value)
+        except socket.error:
+            raise typer.BadParameter(f"Invalid host format: {value}")
+    return value
+
+@app.command()
+def main(
+    debug: bool = typer.Option(
+        False, 
+        "--debug", 
+        "-d", 
+        help="Enable debug mode with auto-reload and detailed error messages"
+    ),
+    port: Annotated[int | None, typer.Option(
+        "--port",
+        "-p",
+        help="Port to run the server on (overrides PORT environment variable)",
+        callback=validate_port,
+        min=1,
+        max=65535
+    )] = None,
+    host: Annotated[str, typer.Option(
+        "--host",
+        help="Host to bind the server to",
+        callback=validate_host
+    )] = "0.0.0.0",
+    share: bool = typer.Option(
+        False, 
+        "--share", 
+        "-s", 
+        help="Create a public shareable link"
+    ),
+    browser: bool = typer.Option(
+        False, 
+        "--browser", 
+        "-b", 
+        help="Auto-open in browser (useful for development)"
+    ),
+):
+    """Launch the Chat My Doc App Gradio interface."""
+    typer.echo("🚀 Starting Chat My Doc App...")
+    
     interface = create_chat_interface()
     
+    # Determine port: CLI argument > environment variable > default
+    if port is None:
+        port = int(os.getenv("PORT", 8000))
+    
+    typer.echo(f"🌐 Server will run on {host}:{port}")
+    if debug:
+        typer.echo("🐛 Debug mode enabled - auto-reload and detailed errors")
+    if share:
+        typer.echo("🔗 Creating public shareable link")
+    
     # Launch the interface
-    # Use PORT environment variable if available (for Cloud Run), otherwise default to 8000
-    port = int(os.getenv("PORT", 8000))
     interface.launch(
-        server_name="0.0.0.0",
+        server_name=host,
         server_port=port,
-        share=False,
-        show_error=True
+        share=share,
+        show_error=True,
+        debug=debug,
+        inbrowser=browser
     )
 
 if __name__ == "__main__":
-    main()
+    app()

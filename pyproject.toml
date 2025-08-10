@@ -12,12 +12,14 @@ dependencies = [
     "langchain-google-genai>=1.0.0",
     "loguru>=0.7.3",
     "python-dotenv>=1.0.0",
+    "typer>=0.16.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.17.0",
     "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
     "pytest-mock>=3.14.1",
     "ruff>=0.12.4",
@@ -39,4 +41,15 @@ addopts = [
     "--cov=src/caht_my_doc_app",
     "--cov-report=term-missing",
     "--cov-report=html",
+]
+filterwarnings = [
+    # Ignore deprecated websockets warnings from dependencies
+    "ignore::DeprecationWarning:websockets.legacy",
+    # Ignore Pydantic v2 migration warnings from dependencies  
+    "ignore::DeprecationWarning:pydantic._internal._config",
+    # Ignore asyncio event loop warnings from Gradio
+    "ignore:There is no current event loop:DeprecationWarning",
+    # Ignore Gradio deprecation warnings
+    "ignore:You have not specified a value for the `type` parameter:UserWarning",
+    "ignore:The 'bubble_full_width' parameter is deprecated:DeprecationWarning",
 ]

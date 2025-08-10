@@ -6,25 +6,25 @@ import requests
 import aiohttp
 from langchain_core.messages import HumanMessage, AIMessage
 
-from chat_my_doc_app.llms import CustomGeminiChat
+from chat_my_doc_app.llms import GeminiChat
 
 
-class TestCustomGeminiChat:
-    """Test suite for CustomGeminiChat class."""
+class TestGeminiChat:
+    """Test suite for GeminiChat class."""
     
     def setup_method(self):
         """Set up test fixtures before each test method."""
         self.api_url = "https://test-api.example.com"
-        self.llm = CustomGeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite")
+        self.llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite")
     
     def test_initialization(self):
-        """Test CustomGeminiChat initialization."""
+        """Test GeminiChat initialization."""
         assert self.llm.api_url == self.api_url
         assert self.llm.model_name == "gemini-2.0-flash-lite"
     
     def test_llm_type_property(self):
         """Test the _llm_type property returns correct value."""
-        assert self.llm._llm_type == "custom_gemini_chat"
+        assert self.llm._llm_type == "gemini_chat"
     
     def test_identifying_params(self):
         """Test the _identifying_params property."""
@@ -156,7 +156,8 @@ class TestCustomGeminiChat:
         # Note: Async streaming tests are complex to mock properly in this setup
         # The method exists and will work with proper aiohttp mocking in integration tests
     
-    @patch.object(CustomGeminiChat, '_generate')
+    @pytest.mark.asyncio
+    @patch.object(GeminiChat, '_generate')
     async def test_agenerate(self, mock_generate):
         """Test _agenerate method."""
         # Mock the _generate method since _agenerate falls back to it
@@ -170,12 +171,12 @@ class TestCustomGeminiChat:
         mock_generate.assert_called_once_with(messages, None, None)
 
 
-class TestCustomGeminiChatIntegration:
-    """Integration tests for CustomGeminiChat."""
+class TestGeminiChatIntegration:
+    """Integration tests for GeminiChat."""
     
     def test_langchain_compatibility(self):
-        """Test that CustomGeminiChat is compatible with LangChain interfaces."""
-        llm = CustomGeminiChat(api_url="https://test-api.example.com")
+        """Test that GeminiChat is compatible with LangChain interfaces."""
+        llm = GeminiChat(api_url="https://test-api.example.com")
         
         # Test that it has required LangChain BaseChatModel attributes/methods
         assert hasattr(llm, '_generate')
@@ -189,7 +190,7 @@ class TestCustomGeminiChatIntegration:
     
     def test_model_name_override(self):
         """Test that model_name can be overridden in kwargs."""
-        llm = CustomGeminiChat(api_url="https://test-api.example.com", model_name="default-model")
+        llm = GeminiChat(api_url="https://test-api.example.com", model_name="default-model")
         
         with patch('requests.post') as mock_post:
             mock_response = Mock()

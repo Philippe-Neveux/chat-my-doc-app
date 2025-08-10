@@ -4,7 +4,6 @@ Chat functionality using custom LangChain implementation for deployed Gemini API
 This module provides chat functionality with conversation memory using
 a custom LangChain BaseChatModel that connects to your deployed API.
 """
-
 import os
 from typing import Dict, Iterator, List
 
@@ -12,16 +11,9 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from loguru import logger
 
-from .llms import CustomGeminiChat
+from chat_my_doc_app.llms import GeminiChat
 
 load_dotenv()
-
-# Available models
-AVAILABLE_MODELS = [
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash", 
-    "gemini-1.5-pro"
-]
 
 # Global conversation history storage (in production, use proper session management)
 conversation_histories: Dict[str, List[BaseMessage]] = {}
@@ -65,7 +57,7 @@ def chat_with_gemini_stream(
             raise ValueError("CLOUD_RUN_API_URL environment variable is not set")
         
         # Configure the custom LangChain model
-        llm = CustomGeminiChat(
+        llm = GeminiChat(
             api_url=api_url,
             model_name=model_name
         )
@@ -106,4 +98,8 @@ def chat_with_gemini_stream(
 
 def get_available_models() -> List[str]:
     """Get list of available Gemini models."""
-    return AVAILABLE_MODELS.copy()
+    return [
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash", 
+        "gemini-1.5-pro"
+    ]
