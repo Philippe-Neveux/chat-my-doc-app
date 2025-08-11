@@ -5,10 +5,11 @@ This module provides chat functionality with conversation memory using
 a custom LangChain BaseChatModel that connects to your deployed API.
 """
 import os
-from typing import Annotated, AsyncIterator, Iterator, List, TypedDict
+from typing import Annotated, AsyncIterator, Iterator, List, TypedDict, cast, Any
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, add_messages, START, END
 from loguru import logger
@@ -76,7 +77,7 @@ async def chat_with_gemini_astream(
         user_message = HumanMessage(content=message)
         
         # Configure thread and model
-        config = {
+        config: RunnableConfig = {
             "configurable": {
                 "thread_id": session_id,
                 "model_name": model_name
@@ -88,8 +89,8 @@ async def chat_with_gemini_astream(
         
         # Stream tokens using LangGraph's native async streaming with messages mode
         async for message_chunk, _ in graph.astream(
-            {"messages": [user_message]},
-            config,
+            cast(Any, {"messages": [user_message]}), #ignore
+            config=config,
             stream_mode="messages"
         ):
             if hasattr(message_chunk, 'content') and message_chunk.content:
@@ -110,13 +111,13 @@ async def chat_with_gemini_astream(
 
 def get_conversation_history(session_id: str) -> List[BaseMessage]:
     """Get conversation history for a session using LangGraph state."""
-    config = {"configurable": {"thread_id": session_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": session_id}}
     current_state = graph.get_state(config)
     return current_state.values.get("messages", []) if current_state.values else []
 
 def clear_conversation_history(session_id: str) -> None:
     """Clear conversation history for a session."""
-    config = {"configurable": {"thread_id": session_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": session_id}}
     # Update state with empty messages list
     graph.update_state(config, {"messages": []})
     
