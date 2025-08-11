@@ -5,42 +5,63 @@ This module provides chat functionality with conversation memory using
 a custom LangChain BaseChatModel that connects to your deployed API.
 """
 import os
-from typing import Dict, Iterator, List
+from typing import Annotated, AsyncIterator, Iterator, List, TypedDict
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import StateGraph, add_messages, START, END
 from loguru import logger
 
 from chat_my_doc_app.llms import GeminiChat
 
 load_dotenv()
 
-# Global conversation history storage (in production, use proper session management)
-conversation_histories: Dict[str, List[BaseMessage]] = {}
+# State definition for LangGraph
+class State(TypedDict):
+    messages: Annotated[List[BaseMessage], add_messages]
 
-def get_conversation_history(session_id: str) -> List[BaseMessage]:
-    """Get conversation history for a session."""
-    if session_id not in conversation_histories:
-        conversation_histories[session_id] = []
-    return conversation_histories[session_id]
+# Initialize LangGraph with InMemorySaver for short-term memory
+checkpointer = InMemorySaver()
 
-def add_to_history(session_id: str, message: BaseMessage) -> None:
-    """Add a message to conversation history."""
-    history = get_conversation_history(session_id)
-    history.append(message)
+async def chat_node(state: State, config) -> State:
+    """Chat node that processes messages and generates responses with streaming."""
+    # Get API URL from environment variable
+    api_url = os.getenv("CLOUD_RUN_API_URL")
+    if not api_url:
+        raise ValueError("CLOUD_RUN_API_URL environment variable is not set")
+    
+    # Get model name from config metadata, fallback to default
+    model_name = config.get("configurable", {}).get("model_name", "gemini-2.0-flash-lite")
+    logger.debug(f"Using model: {model_name}")
+    
+    # Configure the custom LangChain model
+    llm = GeminiChat(
+        api_url=api_url,    
+        model_name=model_name
+    )
 
-def clear_conversation_history(session_id: str) -> None:
-    """Clear conversation history for a session."""
-    if session_id in conversation_histories:
-        conversation_histories[session_id] = []
+    # Generate response using all messages as context (async)
+    response = await llm.ainvoke(state["messages"], config)
+    
+    # Return updated state with the new response
+    return {"messages": [response]}
 
-def chat_with_gemini_stream(
+# Compile the graph with checkpointer
+graph = (
+    StateGraph(State)
+    .add_node("chat", chat_node)
+    .add_edge(START, "chat")
+    .add_edge("chat", END)
+).compile(checkpointer=checkpointer)
+
+async def chat_with_gemini_astream(
     message: str,
     model_name: str,
     session_id: str = "default"
-) -> Iterator[str]:
+) -> AsyncIterator[str]:
     """
-    Chat with deployed Gemini API using custom LangChain implementation with streaming support.
+    Chat with deployed Gemini API using LangGraph native streaming.
     
     Args:
         message: User message
@@ -51,50 +72,50 @@ def chat_with_gemini_stream(
         str: Streaming response chunks
     """
     try:
-        # Get API URL from environment variable
-        api_url = os.getenv("CLOUD_RUN_API_URL")
-        if not api_url:
-            raise ValueError("CLOUD_RUN_API_URL environment variable is not set")
-        
-        # Configure the custom LangChain model
-        llm = GeminiChat(
-            api_url=api_url,
-            model_name=model_name
-        )
-        
-        # Add user message to history
+        # Create user message
         user_message = HumanMessage(content=message)
-        add_to_history(session_id, user_message)
         
-        # Get conversation history
-        history = get_conversation_history(session_id)
+        # Configure thread and model
+        config = {
+            "configurable": {
+                "thread_id": session_id,
+                "model_name": model_name
+            }
+        }
         
-        logger.debug(f"Using model: {model_name}")
-        logger.debug(f"Conversation history length: {len(history)}")
+        logger.debug(f"Session ID: {session_id}")
+        logger.debug(f"Model Name: {model_name}")
         
-        # Stream the response
-        full_response = ""
-        for chunk in llm.stream(history):
-            if hasattr(chunk, 'content') and chunk.content:
-                content = chunk.content
+        # Stream tokens using LangGraph's native async streaming with messages mode
+        async for message_chunk, _ in graph.astream(
+            {"messages": [user_message]},
+            config,
+            stream_mode="messages"
+        ):
+            if hasattr(message_chunk, 'content') and message_chunk.content:
+                content = message_chunk.content
                 # Handle different content types
                 if isinstance(content, str):
-                    full_response += content
+                    logger.debug(f"Streaming chunk which is a string: {content}")
                     yield content
-                elif isinstance(content, list):
-                    # Convert list to string
-                    text_content = " ".join(str(item) for item in content if item)
-                    full_response += text_content
-                    yield text_content
-        
-        # Add assistant response to history
-        assistant_message = AIMessage(content=full_response)
-        add_to_history(session_id, assistant_message)
+                else:
+                    raise ValueError(f"Unexpected content type: {type(content)}")
+            else:
+                raise ValueError("Message chunk does not have content")
         
     except Exception as e:
         error_msg = f"Error: {str(e)}"
         logger.error(error_msg)
         yield error_msg
+
+def clear_conversation_history(session_id: str) -> None:
+    """Clear conversation history for a session."""
+    config = {"configurable": {"thread_id": session_id}}
+    # Update state with empty messages list
+    graph.update_state(config, {"messages": []})
+    
+    logger.debug(f"Conversation history cleared for session: {session_id}")
+    logger.debug(f"Current state after clearing: {graph.get_state(config)}")
 
 def get_available_models() -> List[str]:
     """Get list of available Gemini models."""

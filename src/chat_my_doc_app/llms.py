@@ -107,7 +107,7 @@ class GeminiChat(BaseChatModel):
     ) -> Iterator[ChatGenerationChunk]:
         """Stream chat response using the deployed API."""
         prompt = self._messages_to_prompt(messages)
-        logger.debug(f"Streaming response for prompt: {prompt}")
+        logger.debug(f"Starting Streaming response for prompt: {prompt}")
         
         # Get model from kwargs if provided, otherwise use default
         model_name = kwargs.get("model_name", self.model_name)
@@ -158,7 +158,7 @@ class GeminiChat(BaseChatModel):
     ) -> AsyncIterator[ChatGenerationChunk]:
         """Async stream chat response using the deployed API."""
         prompt = self._messages_to_prompt(messages)
-        logger.debug(f"Async streaming response for prompt: {prompt}")
+        logger.debug(f"Starting Async streaming response for prompt: {prompt}")
         
         # Get model from kwargs if provided, otherwise use default
         model_name = kwargs.get("model_name", self.model_name)

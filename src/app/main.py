@@ -14,20 +14,16 @@ from typing import List
 import gradio as gr
 import typer
 from dotenv import load_dotenv
+from loguru import logger
 from typing_extensions import Annotated
 
 from chat_my_doc_app.chats import (
-    chat_with_gemini_stream,
+    chat_with_gemini_astream,
     clear_conversation_history,
     get_available_models,
 )
 
 load_dotenv()
-
-# Configure Google API Key
-# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-# if not GOOGLE_API_KEY:
-#     raise ValueError("GOOGLE_API_KEY environment variable is not set")
 
 def create_chat_interface():
     """Create the Gradio chat interface."""
@@ -35,18 +31,19 @@ def create_chat_interface():
     # Use a single session ID for the entire conversation
     session_id = "gradio_session_1"
     
-    def respond(
+    async def respond(
         message: str,
         history: List[dict],
         model_name: str
     ):
         """Handle user message and generate response."""
         if not message.strip():
-            return "", history
+            yield "", history
+            return  # Early exit (no value)
         
         # Stream the response
         partial_response = ""
-        for chunk in chat_with_gemini_stream(message, model_name, session_id):
+        async for chunk in chat_with_gemini_astream(message, model_name, session_id):
             partial_response += chunk
             # Update the history with current partial response in messages format
             new_history = history + [
@@ -104,6 +101,7 @@ def create_chat_interface():
         def clear_history():
             # Clear the conversation history for this session
             clear_conversation_history(session_id)
+            logger.debug("Conversation history cleared")
             return [], ""
         
         clear_btn.click(
