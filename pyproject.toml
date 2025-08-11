@@ -13,12 +13,15 @@ dependencies = [
     "langgraph>=0.6.4",
     "loguru>=0.7.3",
     "python-dotenv>=1.0.0",
+    "qdrant-client>=1.15.1",
+    "sentence-transformers>=5.1.0",
     "typer>=0.16.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.17.0",
+    "notebook>=7.4.5",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.2.1",
