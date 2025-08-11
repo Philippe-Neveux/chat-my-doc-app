@@ -108,6 +108,12 @@ async def chat_with_gemini_astream(
         logger.error(error_msg)
         yield error_msg
 
+def get_conversation_history(session_id: str) -> List[BaseMessage]:
+    """Get conversation history for a session using LangGraph state."""
+    config = {"configurable": {"thread_id": session_id}}
+    current_state = graph.get_state(config)
+    return current_state.values.get("messages", []) if current_state.values else []
+
 def clear_conversation_history(session_id: str) -> None:
     """Clear conversation history for a session."""
     config = {"configurable": {"thread_id": session_id}}
