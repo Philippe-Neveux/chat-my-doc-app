@@ -5,13 +5,13 @@ This module provides chat functionality with conversation memory using
 a custom LangChain BaseChatModel that connects to your deployed API.
 """
 import os
-from typing import Annotated, AsyncIterator, Iterator, List, TypedDict, cast, Any
+from typing import Annotated, Any, AsyncIterator, Iterator, List, TypedDict, cast
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import StateGraph, add_messages, START, END
+from langgraph.graph import END, START, StateGraph, add_messages
 from loguru import logger
 
 from chat_my_doc_app.llms import GeminiChat
