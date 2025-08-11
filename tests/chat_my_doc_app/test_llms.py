@@ -21,6 +21,13 @@ class TestGeminiChat:
         """Test GeminiChat initialization."""
         assert self.llm.api_url == self.api_url
         assert self.llm.model_name == "gemini-2.0-flash-lite"
+        assert self.llm.system_prompt == "You are a helpful assistant."
+    
+    def test_initialization_with_custom_system_prompt(self):
+        """Test GeminiChat initialization with custom system prompt."""
+        custom_prompt = "You are a French translator."
+        llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite", system_prompt=custom_prompt)
+        assert llm.system_prompt == custom_prompt
     
     def test_llm_type_property(self):
         """Test the _llm_type property returns correct value."""
@@ -36,13 +43,15 @@ class TestGeminiChat:
         """Test _messages_to_prompt with HumanMessage."""
         messages = [HumanMessage(content="Hello, how are you?")]
         prompt = self.llm._messages_to_prompt(messages)
-        assert prompt == "Human: Hello, how are you?"
+        expected = "System: You are a helpful assistant.\nHuman: Hello, how are you?"
+        assert prompt == expected
     
     def test_messages_to_prompt_ai_messages(self):
         """Test _messages_to_prompt with AIMessage."""
         messages = [AIMessage(content="I'm doing well, thank you!")]
         prompt = self.llm._messages_to_prompt(messages)
-        assert prompt == "Assistant: I'm doing well, thank you!"
+        expected = "System: You are a helpful assistant.\nAssistant: I'm doing well, thank you!"
+        assert prompt == expected
     
     def test_messages_to_prompt_mixed_messages(self):
         """Test _messages_to_prompt with mixed message types."""
@@ -52,7 +61,15 @@ class TestGeminiChat:
             HumanMessage(content="How are you?")
         ]
         prompt = self.llm._messages_to_prompt(messages)
-        expected = "Human: Hello\nAssistant: Hi there!\nHuman: How are you?"
+        expected = "System: You are a helpful assistant.\nHuman: Hello\nAssistant: Hi there!\nHuman: How are you?"
+        assert prompt == expected
+    
+    def test_messages_to_prompt_with_custom_system_prompt(self):
+        """Test _messages_to_prompt with custom system prompt."""
+        custom_llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite", system_prompt="You are a translator.")
+        messages = [HumanMessage(content="Hello")]
+        prompt = custom_llm._messages_to_prompt(messages)
+        expected = "System: You are a translator.\nHuman: Hello"
         assert prompt == expected
     
     @patch('requests.post')
@@ -73,7 +90,7 @@ class TestGeminiChat:
         assert result.generations[0].message.content == "Hello, this is a test response"
         mock_post.assert_called_once_with(
             f"{self.api_url}/gemini",
-            json={"prompt": "Human: test prompt", "model_name": "gemini-2.0-flash-lite"},
+            json={"prompt": "System: You are a helpful assistant.\nHuman: test prompt", "model_name": "gemini-2.0-flash-lite"},
             headers={"Content-Type": "application/json"}
         )
     
@@ -119,7 +136,7 @@ class TestGeminiChat:
         assert chunks[2].message.content == "!"
         mock_post.assert_called_once_with(
             f"{self.api_url}/gemini-stream",
-            json={"prompt": "Human: test prompt", "model_name": "gemini-2.0-flash-lite"},
+            json={"prompt": "System: You are a helpful assistant.\nHuman: test prompt", "model_name": "gemini-2.0-flash-lite"},
             headers={"Content-Type": "application/json"},
             stream=True
         )

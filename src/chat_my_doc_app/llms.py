@@ -25,6 +25,7 @@ class GeminiChat(BaseChatModel):
     
     api_url: str = Field(..., description="Base URL for the deployed API")
     model_name: str = Field(default="gemini-2.0-flash-lite", description="Model name to use")
+    system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt for the model")
     
     class Config:
         arbitrary_types_allowed = True
@@ -40,15 +41,16 @@ class GeminiChat(BaseChatModel):
     
     def _messages_to_prompt(self, messages: List[BaseMessage]) -> str:
         """Convert list of messages to a single prompt string."""
-        prompt_parts = []
+        prompt = [f"System: {self.system_prompt}"]
+        
         for message in messages:
             if isinstance(message, HumanMessage):
-                prompt_parts.append(f"Human: {message.content}")
+                prompt.append(f"Human: {message.content}")
             elif isinstance(message, AIMessage):
-                prompt_parts.append(f"Assistant: {message.content}")
+                prompt.append(f"Assistant: {message.content}")
             else:
-                prompt_parts.append(f"{message.content}")
-        return "\n".join(prompt_parts)
+                prompt.append(f"{message.content}")
+        return "\n".join(prompt)
     
     def _generate(
         self,

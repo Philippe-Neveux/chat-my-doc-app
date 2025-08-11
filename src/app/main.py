@@ -34,16 +34,19 @@ def create_chat_interface():
     async def respond(
         message: str,
         history: List[dict],
-        model_name: str
+        model_name: str,
+        system_prompt: str
     ):
         """Handle user message and generate response."""
         if not message.strip():
             yield "", history
-            return  # Early exit (no value)
+            return 
         
         # Stream the response
         partial_response = ""
-        async for chunk in chat_with_gemini_astream(message, model_name, session_id):
+        async for chunk in chat_with_gemini_astream(
+            message, model_name, session_id, system_prompt
+        ):
             partial_response += chunk
             # Update the history with current partial response in messages format
             new_history = history + [
@@ -63,7 +66,7 @@ def create_chat_interface():
                     value=[],
                     height=600,
                     show_label=False,
-                    type="messages"  # Use new messages format instead of deprecated tuples
+                    type="messages"
                 )
                 
                 with gr.Row():
@@ -83,18 +86,26 @@ def create_chat_interface():
                     interactive=True
                 )
                 
+                system_prompt_input = gr.Textbox(
+                    value="You are a helpful assistant.",
+                    label="System Prompt",
+                    placeholder="Enter system prompt...",
+                    lines=3,
+                    interactive=True
+                )
+                
                 clear_btn = gr.Button("Clear Chat", variant="secondary")
         
         # Event handlers
         msg.submit(
             respond,
-            inputs=[msg, chatbot, model_dropdown],
+            inputs=[msg, chatbot, model_dropdown, system_prompt_input],
             outputs=[msg, chatbot]
         )
         
         send_btn.click(
             respond,
-            inputs=[msg, chatbot, model_dropdown], 
+            inputs=[msg, chatbot, model_dropdown, system_prompt_input], 
             outputs=[msg, chatbot]
         )
         

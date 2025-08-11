@@ -58,7 +58,8 @@ class TestChatFunctions:
         async for chunk in chat_with_gemini_astream(
             message="Test message", 
             model_name="gemini-2.0-flash-lite",
-            session_id=session_id
+            session_id=session_id,
+            system_prompt="You are a helpful assistant."
         ):
             result.append(chunk)
         
@@ -81,25 +82,87 @@ class TestChatFunctions:
         async for chunk in chat_with_gemini_astream(
             message="Hello",
             model_name="gemini-2.0-flash-lite",
-            session_id="test_session_exception"
+            session_id="test_session_exception",
+            system_prompt="You are a helpful assistant."
         ):
             result.append(chunk)
         
         assert len(result) == 1
         assert "Error: Test connection error" in result[0]
     
+    @patch.dict('os.environ', {'CLOUD_RUN_API_URL': 'https://test-api.example.com'})
     @patch('chat_my_doc_app.chats.graph')
-    def test_clear_conversation_history(self, mock_graph):
-        """Test clearing conversation history."""
+    @pytest.mark.asyncio
+    async def test_chat_with_custom_system_prompt(self, mock_graph):
+        """Test async chat with custom system prompt."""
+        # Mock the graph.astream method to return async generator
+        async def mock_astream(*args, **kwargs):
+            yield (Mock(content="Bonjour!"), {})
+        
+        mock_graph.astream = mock_astream
+        
+        result = []
+        async for chunk in chat_with_gemini_astream(
+            message="Hello",
+            model_name="gemini-2.0-flash-lite", 
+            session_id="test_custom_prompt",
+            system_prompt="You are a French translator. Respond only in French."
+        ):
+            result.append(chunk)
+        
+        assert result == ["Bonjour!"]
+    
+    @patch('chat_my_doc_app.chats.graph')
+    def test_clear_conversation_history_empty(self, mock_graph):
+        """Test clearing conversation history when no messages exist."""
+        # Mock empty state
+        mock_state = Mock()
+        mock_state.values = {"messages": []}
+        mock_graph.get_state.return_value = mock_state
         mock_graph.update_state = Mock()
         
-        session_id = "test_session"
+        session_id = "test_session_empty"
         clear_conversation_history(session_id)
         
-        # Verify update_state was called with correct parameters
+        # Verify get_state was called twice 
+        # (once for checking, once for debug logging) 
+        # but update_state was not called (no messages to remove)
         expected_config = {"configurable": {"thread_id": session_id}}
-        expected_state = {"messages": []}
-        mock_graph.update_state.assert_called_once_with(expected_config, expected_state)
+        assert mock_graph.get_state.call_count == 2
+        mock_graph.get_state.assert_called_with(expected_config)
+        mock_graph.update_state.assert_not_called()
+    
+    @patch('chat_my_doc_app.chats.graph')
+    def test_clear_conversation_history_with_messages(self, mock_graph):
+        """Test clearing conversation history with existing messages."""
+        from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
+        
+        # Create mock messages with IDs
+        msg1 = HumanMessage(content="Hello", id="msg1")
+        msg2 = AIMessage(content="Hi!", id="msg2")
+        
+        mock_state = Mock()
+        mock_state.values = {"messages": [msg1, msg2]}
+        mock_graph.get_state.return_value = mock_state
+        mock_graph.update_state = Mock()
+        
+        session_id = "test_session_with_messages"
+        clear_conversation_history(session_id)
+        
+        # Verify get_state and update_state were called correctly
+        expected_config = {"configurable": {"thread_id": session_id}}   
+        assert mock_graph.get_state.call_count == 2  # Called twice (once for checking, once for debug logging)
+        mock_graph.get_state.assert_called_with(expected_config)
+        
+        # Verify update_state was called with RemoveMessage objects
+        call_args = mock_graph.update_state.call_args
+        assert call_args[0][0] == expected_config
+        
+        remove_messages = call_args[0][1]["messages"]
+        assert len(remove_messages) == 2
+        assert all(isinstance(msg, RemoveMessage) for msg in remove_messages)
+        assert remove_messages[0].id == "msg1"
+        assert remove_messages[1].id == "msg2"
     
     @patch('chat_my_doc_app.chats.graph')
     def test_get_conversation_history_empty(self, mock_graph):
