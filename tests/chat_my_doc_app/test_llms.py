@@ -11,48 +11,48 @@ from chat_my_doc_app.llms import GeminiChat
 
 class TestGeminiChat:
     """Test suite for GeminiChat class."""
-    
+
     def setup_method(self):
         """Set up test fixtures before each test method."""
         self.api_url = "https://test-api.example.com"
         self.llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite")
-    
+
     def test_initialization(self):
         """Test GeminiChat initialization."""
         assert self.llm.api_url == self.api_url
         assert self.llm.model_name == "gemini-2.0-flash-lite"
         assert self.llm.system_prompt == "You are a helpful assistant."
-    
+
     def test_initialization_with_custom_system_prompt(self):
         """Test GeminiChat initialization with custom system prompt."""
         custom_prompt = "You are a French translator."
         llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite", system_prompt=custom_prompt)
         assert llm.system_prompt == custom_prompt
-    
+
     def test_llm_type_property(self):
         """Test the _llm_type property returns correct value."""
         assert self.llm._llm_type == "gemini_chat"
-    
+
     def test_identifying_params(self):
         """Test the _identifying_params property."""
         params = self.llm._identifying_params
         assert params["api_url"] == self.api_url
         assert params["model_name"] == "gemini-2.0-flash-lite"
-    
+
     def test_messages_to_prompt_human_messages(self):
         """Test _messages_to_prompt with HumanMessage."""
         messages = [HumanMessage(content="Hello, how are you?")]
         prompt = self.llm._messages_to_prompt(messages)
         expected = "System: You are a helpful assistant.\nHuman: Hello, how are you?"
         assert prompt == expected
-    
+
     def test_messages_to_prompt_ai_messages(self):
         """Test _messages_to_prompt with AIMessage."""
         messages = [AIMessage(content="I'm doing well, thank you!")]
         prompt = self.llm._messages_to_prompt(messages)
         expected = "System: You are a helpful assistant.\nAssistant: I'm doing well, thank you!"
         assert prompt == expected
-    
+
     def test_messages_to_prompt_mixed_messages(self):
         """Test _messages_to_prompt with mixed message types."""
         messages = [
@@ -63,7 +63,7 @@ class TestGeminiChat:
         prompt = self.llm._messages_to_prompt(messages)
         expected = "System: You are a helpful assistant.\nHuman: Hello\nAssistant: Hi there!\nHuman: How are you?"
         assert prompt == expected
-    
+
     def test_messages_to_prompt_with_custom_system_prompt(self):
         """Test _messages_to_prompt with custom system prompt."""
         custom_llm = GeminiChat(api_url=self.api_url, model_name="gemini-2.0-flash-lite", system_prompt="You are a translator.")
@@ -71,7 +71,7 @@ class TestGeminiChat:
         prompt = custom_llm._messages_to_prompt(messages)
         expected = "System: You are a translator.\nHuman: Hello"
         assert prompt == expected
-    
+
     @patch('requests.post')
     def test_generate_success(self, mock_post):
         """Test successful _generate call."""
@@ -82,10 +82,10 @@ class TestGeminiChat:
             "message": "Hello, this is a test response"
         }
         mock_post.return_value = mock_response
-        
+
         messages = [HumanMessage(content="test prompt")]
         result = self.llm._generate(messages)
-        
+
         assert len(result.generations) == 1
         assert result.generations[0].message.content == "Hello, this is a test response"
         mock_post.assert_called_once_with(
@@ -93,7 +93,7 @@ class TestGeminiChat:
             json={"prompt": "System: You are a helpful assistant.\nHuman: test prompt", "model_name": "gemini-2.0-flash-lite"},
             headers={"Content-Type": "application/json"}
         )
-    
+
     @patch('requests.post')
     def test_generate_api_error(self, mock_post):
         """Test _generate with API error."""
@@ -101,24 +101,24 @@ class TestGeminiChat:
         mock_response.status_code = 400
         mock_response.text = "Bad Request"
         mock_post.return_value = mock_response
-        
+
         messages = [HumanMessage(content="test prompt")]
         result = self.llm._generate(messages)
-        
+
         assert len(result.generations) == 1
         assert "API Error: 400" in result.generations[0].message.content
-    
+
     @patch('requests.post')
     def test_generate_exception(self, mock_post):
         """Test _generate with request exception."""
         mock_post.side_effect = Exception("Connection failed")
-        
+
         messages = [HumanMessage(content="test prompt")]
         result = self.llm._generate(messages)
-        
+
         assert len(result.generations) == 1
         assert "Error calling API: Connection failed" in result.generations[0].message.content
-    
+
     @patch('requests.post')
     def test_stream_success(self, mock_post):
         """Test successful _stream call."""
@@ -126,10 +126,10 @@ class TestGeminiChat:
         mock_response.status_code = 200
         mock_response.iter_content.return_value = ["Hello", " world", "!"]
         mock_post.return_value = mock_response
-        
+
         messages = [HumanMessage(content="test prompt")]
         chunks = list(self.llm._stream(messages))
-        
+
         assert len(chunks) == 3
         assert chunks[0].message.content == "Hello"
         assert chunks[1].message.content == " world"
@@ -140,7 +140,7 @@ class TestGeminiChat:
             headers={"Content-Type": "application/json"},
             stream=True
         )
-    
+
     @patch('requests.post')
     def test_stream_api_error(self, mock_post):
         """Test _stream with API error."""
@@ -148,31 +148,31 @@ class TestGeminiChat:
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
         mock_post.return_value = mock_response
-        
+
         messages = [HumanMessage(content="test prompt")]
         chunks = list(self.llm._stream(messages))
-        
+
         assert len(chunks) == 1
         assert "API Error: 500" in chunks[0].message.content
-    
+
     @patch('requests.post')
     def test_stream_exception(self, mock_post):
         """Test _stream with request exception."""
         mock_post.side_effect = Exception("Network error")
-        
+
         messages = [HumanMessage(content="test prompt")]
         chunks = list(self.llm._stream(messages))
-        
+
         assert len(chunks) == 1
         assert "Error calling API: Network error" in chunks[0].message.content
-    
+
     def test_astream_exists(self):
         """Test that _astream method exists and is callable."""
         assert hasattr(self.llm, '_astream')
         assert callable(self.llm._astream)
         # Note: Async streaming tests are complex to mock properly in this setup
         # The method exists and will work with proper aiohttp mocking in integration tests
-    
+
     @pytest.mark.asyncio
     @patch.object(GeminiChat, '_generate')
     async def test_agenerate(self, mock_generate):
@@ -180,21 +180,21 @@ class TestGeminiChat:
         # Mock the _generate method since _agenerate falls back to it
         mock_result = Mock()
         mock_generate.return_value = mock_result
-        
+
         messages = [HumanMessage(content="test prompt")]
         result = await self.llm._agenerate(messages)
-        
+
         assert result == mock_result
         mock_generate.assert_called_once_with(messages, None, None)
 
 
 class TestGeminiChatIntegration:
     """Integration tests for GeminiChat."""
-    
+
     def test_langchain_compatibility(self):
         """Test that GeminiChat is compatible with LangChain interfaces."""
         llm = GeminiChat(api_url="https://test-api.example.com")
-        
+
         # Test that it has required LangChain BaseChatModel attributes/methods
         assert hasattr(llm, '_generate')
         assert hasattr(llm, '_stream')
@@ -204,20 +204,20 @@ class TestGeminiChatIntegration:
         assert callable(llm._generate)
         assert callable(llm._stream)
         assert isinstance(llm._llm_type, str)
-    
+
     def test_model_name_override(self):
         """Test that model_name can be overridden in kwargs."""
         llm = GeminiChat(api_url="https://test-api.example.com", model_name="default-model")
-        
+
         with patch('requests.post') as mock_post:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"message": "test response"}
             mock_post.return_value = mock_response
-            
+
             messages = [HumanMessage(content="test")]
             llm._generate(messages, model_name="custom-model")
-            
+
             # Check that the custom model name was used
             call_args = mock_post.call_args
             assert call_args[1]['json']['model_name'] == "custom-model"

@@ -13,6 +13,12 @@ ruff:
 mypy:
 	uv run mypy src
 
+pre-commit-install:
+	uv run pre-commit install
+
+pre-commit: pre-commit-install
+	uv run pre-commit run --all-files
+
 GCP_REGION ?= australia-southeast1
 GCP_PROJECT_ID ?= gen-ai-466406
 GCP_ARTIFACT_REPOSITORY ?= app-images

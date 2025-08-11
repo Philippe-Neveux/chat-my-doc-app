@@ -11,7 +11,7 @@ A modern Gradio-based chat application that leverages Google's Gemini AI models 
 
 - **Modern Chat Interface**: Clean Gradio-based web UI with real-time streaming responses
 - **Multiple AI Models**: Support for Gemini 2.0 Flash, Gemini 1.5 Pro, and more
-- **Conversation Memory**: Maintains context across conversations with session management  
+- **Conversation Memory**: Maintains context across conversations with session management
 - **Custom LangChain Integration**: Direct connection to your deployed Gemini API
 - **Advanced CLI**: Full-featured command-line interface with Typer
 - **Input Validation**: Robust parameter validation and error handling
@@ -200,7 +200,7 @@ uv run pytest tests/app/test_main.py::TestTyperCLI::test_cli_debug_mode -v
 ### Test Coverage
 
 - ✅ **CLI Functionality**: All Typer CLI options and validation
-- ✅ **Gradio Interface**: Component creation and functionality  
+- ✅ **Gradio Interface**: Component creation and functionality
 - ✅ **LangChain Integration**: Custom model implementation
 - ✅ **Chat Management**: Session handling and conversation memory
 - ✅ **Input Validation**: Port ranges, host formats, parameter validation
@@ -226,7 +226,7 @@ The project includes automated deployment via GitHub Actions:
 
 1. **Set up secrets** in your GitHub repository:
    - `GCP_PROJECT_ID`
-   - `GCP_SA_KEY` 
+   - `GCP_SA_KEY`
    - `CLOUD_RUN_API_URL`
 
 2. **Push to main branch** - deployment happens automatically
@@ -292,7 +292,7 @@ from chat_my_doc_app.chats import chat_with_gemini_stream, get_available_models
 # Stream chat responses
 for chunk in chat_with_gemini_stream(
     message="Hello, how are you?",
-    model_name="gemini-2.0-flash-lite", 
+    model_name="gemini-2.0-flash-lite",
     session_id="user_123"
 ):
     print(chunk, end="")
@@ -324,7 +324,7 @@ response = llm.invoke("What is the capital of France?")
 4. **Run tests**: `uv run pytest`
 5. **Run linting**: `uv run ruff check src/ tests/`
 6. **Commit your changes**: `git commit -m 'Add amazing feature'`
-7. **Push to branch**: `git push origin feature/amazing-feature`  
+7. **Push to branch**: `git push origin feature/amazing-feature`
 8. **Open a Pull Request**
 
 ## License
@@ -334,7 +334,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - **Gradio** - For the excellent web UI framework
-- **LangChain** - For the flexible LLM integration framework  
+- **LangChain** - For the flexible LLM integration framework
 - **Typer** - For the modern CLI framework
 - **Google** - For the powerful Gemini AI models
 - **UV** - For fast and reliable Python package management

@@ -41,7 +41,7 @@ jobs:
         - name: Push Docker image to Artifact Registry
           run: |
             make push_docker_image_to_gcp
-          
+
 
         - id: 'deploy'
           name: Deploy to Cloud Run
@@ -53,6 +53,6 @@ jobs:
             flags: --no-allow-unauthenticated --port=8000
             env_vars: |
               CLOUD_RUN_API_URL=${{ secrets.CLOUD_RUN_API_URL }}
-    
+
         - name: Deployment URL check
           run: 'curl "${{ steps.deploy.outputs.url }}"'

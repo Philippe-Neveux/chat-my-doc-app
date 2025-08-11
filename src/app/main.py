@@ -27,10 +27,10 @@ load_dotenv()
 
 def create_chat_interface():
     """Create the Gradio chat interface."""
-    
+
     # Use a single session ID for the entire conversation
     session_id = "gradio_session_1"
-    
+
     async def respond(
         message: str,
         history: List[dict],
@@ -40,8 +40,8 @@ def create_chat_interface():
         """Handle user message and generate response."""
         if not message.strip():
             yield "", history
-            return 
-        
+            return
+
         # Stream the response
         partial_response = ""
         async for chunk in chat_with_gemini_astream(
@@ -54,12 +54,12 @@ def create_chat_interface():
                 {"role": "assistant", "content": partial_response}
             ]
             yield "", new_history
-    
+
     # Create the interface
     with gr.Blocks(title="Chat My Doc App") as interface:
         gr.Markdown("# Chat My Doc App")
         gr.Markdown("Chat with Google's Gemini AI models using LangChain")
-        
+
         with gr.Row():
             with gr.Column(scale=4):
                 chatbot = gr.Chatbot(
@@ -68,7 +68,7 @@ def create_chat_interface():
                     show_label=False,
                     type="messages"
                 )
-                
+
                 with gr.Row():
                     msg = gr.Textbox(
                         placeholder="Type your message here...",
@@ -77,7 +77,7 @@ def create_chat_interface():
                         container=False
                     )
                     send_btn = gr.Button("Send", scale=1)
-                    
+
             with gr.Column(scale=1):
                 model_dropdown = gr.Dropdown(
                     choices=get_available_models(),
@@ -85,7 +85,7 @@ def create_chat_interface():
                     label="Select Model",
                     interactive=True
                 )
-                
+
                 system_prompt_input = gr.Textbox(
                     value="You are a helpful assistant.",
                     label="System Prompt",
@@ -93,33 +93,33 @@ def create_chat_interface():
                     lines=3,
                     interactive=True
                 )
-                
+
                 clear_btn = gr.Button("Clear Chat", variant="secondary")
-        
+
         # Event handlers
         msg.submit(
             respond,
             inputs=[msg, chatbot, model_dropdown, system_prompt_input],
             outputs=[msg, chatbot]
         )
-        
+
         send_btn.click(
             respond,
-            inputs=[msg, chatbot, model_dropdown, system_prompt_input], 
+            inputs=[msg, chatbot, model_dropdown, system_prompt_input],
             outputs=[msg, chatbot]
         )
-        
+
         def clear_history():
             # Clear the conversation history for this session
             clear_conversation_history(session_id)
             logger.debug("Conversation history cleared")
             return [], ""
-        
+
         clear_btn.click(
             clear_history,
             outputs=[chatbot, msg]
         )
-    
+
     return interface
 
 # Create Typer app
@@ -147,9 +147,9 @@ def validate_host(value: str) -> str:
 @app.command()
 def main(
     debug: bool = typer.Option(
-        False, 
-        "--debug", 
-        "-d", 
+        False,
+        "--debug",
+        "-d",
         help="Enable debug mode with auto-reload and detailed error messages"
     ),
     port: Annotated[int | None, typer.Option(
@@ -166,33 +166,33 @@ def main(
         callback=validate_host
     )] = "0.0.0.0",
     share: bool = typer.Option(
-        False, 
-        "--share", 
-        "-s", 
+        False,
+        "--share",
+        "-s",
         help="Create a public shareable link"
     ),
     browser: bool = typer.Option(
-        False, 
-        "--browser", 
-        "-b", 
+        False,
+        "--browser",
+        "-b",
         help="Auto-open in browser (useful for development)"
     ),
 ):
     """Launch the Chat My Doc App Gradio interface."""
     typer.echo("🚀 Starting Chat My Doc App...")
-    
+
     interface = create_chat_interface()
-    
+
     # Determine port: CLI argument > environment variable > default
     if port is None:
         port = int(os.getenv("PORT", 8000))
-    
+
     typer.echo(f"🌐 Server will run on {host}:{port}")
     if debug:
         typer.echo("🐛 Debug mode enabled - auto-reload and detailed errors")
     if share:
         typer.echo("🔗 Creating public shareable link")
-    
+
     # Launch the interface
     interface.launch(
         server_name=host,

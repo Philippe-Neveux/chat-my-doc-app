@@ -22,27 +22,27 @@ from pydantic import Field
 
 class GeminiChat(BaseChatModel):
     """Custom LangChain Chat Model for your deployed Gemini API."""
-    
+
     api_url: str = Field(..., description="Base URL for the deployed API")
     model_name: str = Field(default="gemini-2.0-flash-lite", description="Model name to use")
     system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt for the model")
-    
+
     class Config:
         arbitrary_types_allowed = True
-    
+
     @property
     def _llm_type(self) -> str:
         return "gemini_chat"
-    
+
     @property
     def _identifying_params(self) -> dict:
         """Return identifying parameters for caching and tracing."""
         return {"api_url": self.api_url, "model_name": self.model_name}
-    
+
     def _messages_to_prompt(self, messages: List[BaseMessage]) -> str:
         """Convert list of messages to a single prompt string."""
         prompt = [f"System: {self.system_prompt}"]
-        
+
         for message in messages:
             if isinstance(message, HumanMessage):
                 prompt.append(f"Human: {message.content}")
@@ -51,7 +51,7 @@ class GeminiChat(BaseChatModel):
             else:
                 prompt.append(f"{message.content}")
         return "\n".join(prompt)
-    
+
     def _generate(
         self,
         messages: List[BaseMessage],
@@ -62,27 +62,27 @@ class GeminiChat(BaseChatModel):
         """Generate chat response using the deployed API."""
         prompt = self._messages_to_prompt(messages)
         logger.debug(f"Generating response for prompt: {prompt}")
-        
+
         # Get model from kwargs if provided, otherwise use default
         model_name = kwargs.get("model_name", self.model_name)
-        
+
         try:
             response = requests.post(
                 f"{self.api_url}/gemini",
                 json={"prompt": prompt, "model_name": model_name},
                 headers={"Content-Type": "application/json"}
             )
-            
+
             if response.status_code == 200:
                 result = response.json()
                 logger.debug(f"API Response: {result}")
-                
+
                 # Extract content from the response
                 if "message" in result:
                     content = str(result["message"])
                 else:
                     content = str(result)
-                
+
                 # Create ChatGeneration and return ChatResult
                 message = AIMessage(content=content)
                 generation = ChatGeneration(message=message)
@@ -99,7 +99,7 @@ class GeminiChat(BaseChatModel):
             message = AIMessage(content=error_msg)
             generation = ChatGeneration(message=message)
             return ChatResult(generations=[generation])
-    
+
     def _stream(
         self,
         messages: List[BaseMessage],
@@ -110,10 +110,10 @@ class GeminiChat(BaseChatModel):
         """Stream chat response using the deployed API."""
         prompt = self._messages_to_prompt(messages)
         logger.debug(f"Starting Streaming response for prompt: {prompt}")
-        
+
         # Get model from kwargs if provided, otherwise use default
         model_name = kwargs.get("model_name", self.model_name)
-        
+
         try:
             response = requests.post(
                 f"{self.api_url}/gemini-stream",
@@ -121,7 +121,7 @@ class GeminiChat(BaseChatModel):
                 headers={"Content-Type": "application/json"},
                 stream=True
             )
-            
+
             if response.status_code == 200:
                 for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
                     if chunk:
@@ -150,7 +150,7 @@ class GeminiChat(BaseChatModel):
             if run_manager:
                 run_manager.on_llm_new_token(error_text, chunk=chat_chunk)
             yield chat_chunk
-    
+
     async def _astream(
         self,
         messages: List[BaseMessage],
@@ -161,10 +161,10 @@ class GeminiChat(BaseChatModel):
         """Async stream chat response using the deployed API."""
         prompt = self._messages_to_prompt(messages)
         logger.debug(f"Starting Async streaming response for prompt: {prompt}")
-        
+
         # Get model from kwargs if provided, otherwise use default
         model_name = kwargs.get("model_name", self.model_name)
-        
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -172,7 +172,7 @@ class GeminiChat(BaseChatModel):
                     json={"prompt": prompt, "model_name": model_name},
                     headers={"Content-Type": "application/json"}
                 ) as response:
-                    
+
                     if response.status == 200:
                         async for chunk in response.content:
                             chunk_text = chunk.decode('utf-8')
@@ -206,7 +206,7 @@ class GeminiChat(BaseChatModel):
             if run_manager:
                 await run_manager.on_llm_new_token(error_text, chunk=chat_chunk)
             yield chat_chunk
-    
+
     async def _agenerate(
         self,
         messages: List[BaseMessage],
