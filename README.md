@@ -57,13 +57,13 @@ PORT=8000
 
 ```bash
 # Basic launch
-uv run python src/app/main.py
+uv run python src/chat_my_doc_app/main.py
 
 # Development mode with debug and auto-open browser
-uv run python src/app/main.py --debug --browser --port 7860
+uv run python src/chat_my_doc_app/main.py --debug --browser --port 7860
 
 # Production mode
-uv run python src/app/main.py --host 0.0.0.0 --port 8000
+uv run python src/chat_my_doc_app/main.py --host 0.0.0.0 --port 8000
 ```
 
 ## Usage
@@ -74,10 +74,10 @@ The application includes a full-featured CLI built with Typer:
 
 ```bash
 # Show all available options
-uv run python src/app/main.py --help
+uv run python src/chat_my_doc_app/main.py --help
 
 # Basic options
-uv run python src/app/main.py [OPTIONS]
+uv run python src/chat_my_doc_app/main.py [OPTIONS]
 
 Options:
   --debug, -d              Enable debug mode with auto-reload
@@ -92,16 +92,16 @@ Options:
 
 ```bash
 # Development with hot-reload and browser auto-open
-uv run python src/app/main.py -d -b -p 7860
+uv run python src/chat_my_doc_app/main.py -d -b -p 7860
 
 # Share publicly (creates Gradio public link)
-uv run python src/app/main.py --share
+uv run python src/chat_my_doc_app/main.py --share
 
 # Custom host and port
-uv run python src/app/main.py --host localhost --port 3000
+uv run python src/chat_my_doc_app/main.py --host localhost --port 3000
 
 # Production deployment
-uv run python src/app/main.py --host 0.0.0.0 --port 8080
+uv run python src/chat_my_doc_app/main.py --host 0.0.0.0 --port 8080
 ```
 
 ### Web Interface
@@ -135,7 +135,7 @@ chat-my-doc-app/
 
 ### Key Components
 
-#### 1. **Gradio Interface** (`src/app/main.py`)
+#### 1. **Gradio Interface** (`src/chat_my_doc_app/main.py`)
 - Modern web UI with streaming chat
 - Multi-model selection dropdown
 - Session-based conversation memory
@@ -153,7 +153,7 @@ chat-my-doc-app/
 - Streaming response handling
 - Error handling and logging
 
-#### 4. **CLI Application** (`src/app/main.py`)
+#### 4. **CLI Application** (`src/chat_my_doc_app/main.py`)
 - Built with Typer for professional CLI experience
 - Input validation and helpful error messages
 - Development and production modes
@@ -187,14 +187,14 @@ uv run pytest
 uv run pytest --cov
 
 # Run specific test categories
-uv run pytest tests/app/                    # CLI & interface tests
+uv run pytest tests/chat_my_doc_app/                    # CLI & interface tests
 uv run pytest tests/chat_my_doc_app/        # Model & chat tests
 
 # Run with verbose output
 uv run pytest -v
 
 # Run specific test
-uv run pytest tests/app/test_main.py::TestTyperCLI::test_cli_debug_mode -v
+uv run pytest tests/chat_my_doc_app/test_main.py::TestTyperCLI::test_cli_debug_mode -v
 ```
 
 ### Test Coverage
@@ -266,13 +266,13 @@ uv run pytest --cov=src/chat_my_doc_app
 
 ```bash
 # Start in development mode
-uv run python src/app/main.py --debug --browser
+uv run python src/chat_my_doc_app/main.py --debug --browser
 
 # Run with hot-reload on custom port
-uv run python src/app/main.py -d -b -p 7860
+uv run python src/chat_my_doc_app/main.py -d -b -p 7860
 
 # Create a public share link for testing
-uv run python src/app/main.py --debug --share
+uv run python src/chat_my_doc_app/main.py --debug --share
 ```
 
 ### Adding New Features

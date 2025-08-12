@@ -14,4 +14,4 @@ EXPOSE 8000
 
 # Run the Gradio app
 # The PORT environment variable will be automatically used by main.py
-CMD ["uv", "run", "python", "src/app/main.py"]
+CMD ["uv", "run", "python", "src/chat_my_doc/main.py"]
