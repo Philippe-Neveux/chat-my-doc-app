@@ -4,6 +4,7 @@ Custom LangChain Chat Model for deployed Gemini API.
 This module provides a custom LangChain BaseChatModel implementation
 that connects to your deployed Gemini API with streaming support.
 """
+import os
 from typing import Any, AsyncIterator, Iterator, List, Optional
 
 import aiohttp
@@ -26,6 +27,25 @@ class GeminiChat(BaseChatModel):
     api_url: str = Field(..., description="Base URL for the deployed API")
     model_name: str = Field(default="gemini-2.0-flash-lite", description="Model name to use")
     system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt for the model")
+
+    def __init__(self, **kwargs: Any):
+        """
+        Initialize the GeminiChat model.
+
+        Args:
+            api_url: Base URL for the deployed API.
+            model_name: Name of the model to use.
+            system_prompt: System prompt for the model.
+        """
+        # Check if api_url is provided in kwargs, otherwise get from environment
+        if 'api_url' not in kwargs:
+            api_url = os.getenv("CLOUD_RUN_API_URL")
+            if not api_url:
+                raise ValueError("CLOUD_RUN_API_URL environment variable is not set")
+            kwargs['api_url'] = api_url
+
+        # Call parent constructor with all fields
+        super().__init__(**kwargs)
 
     class Config:
         arbitrary_types_allowed = True

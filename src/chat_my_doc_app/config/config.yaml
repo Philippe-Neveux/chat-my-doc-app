@@ -39,5 +39,4 @@ rag:
 
 # LLM Configuration
 llm:
-  api_url: "https://llm-gateway-270152570885.australia-southeast1.run.app"
   model_name: "gemini-2.0-flash-lite"

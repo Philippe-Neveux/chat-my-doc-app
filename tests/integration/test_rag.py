@@ -16,7 +16,6 @@ from chat_my_doc_app.rag import (
 )
 
 
-@pytest.mark.integration
 class TestRetrievalIntegration:
     """Integration tests for RetrievalService."""
 
@@ -288,7 +287,6 @@ def retrieval_service():
     return RetrievalService(config)
 
 
-@pytest.mark.integration
 @pytest.mark.slow
 def test_end_to_end_retrieval_workflow(retrieval_service):
     """End-to-end test of the complete RAG workflow."""
@@ -328,7 +326,6 @@ def test_end_to_end_retrieval_workflow(retrieval_service):
             pytest.fail(f"RAG workflow failed for query '{query}': {e}")
 
 
-@pytest.mark.integration
 def test_retrieval_service_error_handling(retrieval_service):
     """Test RAG service error handling."""
 
@@ -391,7 +388,6 @@ def sample_config_rag():
         }
     }
 
-@pytest.mark.integration
 class TestRAGImdbIntegration:
     """Integration tests for RAGImdb."""
 
@@ -407,7 +403,7 @@ class TestRAGImdbIntegration:
             mock_llm = Mock()
             mock_gemini.return_value = mock_llm
 
-            rag = RAGImdb(self.config)
+            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
 
             assert rag.config is not None
             assert rag.rag_service is not None
@@ -420,7 +416,7 @@ class TestRAGImdbIntegration:
             mock_llm = Mock()
             mock_gemini.return_value = mock_llm
 
-            rag = RAGImdb(self.config)
+            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
 
             assert isinstance(rag, RAGImdb)
             assert rag.config == self.config
@@ -440,7 +436,7 @@ class TestRAGImdbIntegration:
             mock_llm._generate.return_value = mock_result
             mock_gemini.return_value = mock_llm
 
-            rag = RAGImdb(self.config)
+            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
 
             # Test retrieve node (will use real RAG service)
             try:
@@ -485,7 +481,7 @@ class TestRAGImdbIntegration:
             mock_llm = Mock()
             mock_gemini.return_value = mock_llm
 
-            rag = RAGImdb(self.config)
+            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
 
             # Check that config values are loaded
             assert rag.config.get('qdrant', {}).get('collection_name') == 'imdb_reviews'
@@ -521,7 +517,7 @@ class TestRAGImdbIntegration:
             mock_gemini.return_value = mock_llm
 
             # Create rag and test complete flow
-            rag = RAGImdb(self.config)
+            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
 
             result = rag.process_query("What are some good action movies?")
 
@@ -562,7 +558,7 @@ class TestRAGImdbIntegration:
         mock_llm_instance._generate.return_value = mock_result
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         # Process a query
         result = rag.process_query("What are good movies?")
@@ -591,7 +587,7 @@ class TestRAGImdbIntegration:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         result = rag.process_query("test query")
 
@@ -613,7 +609,7 @@ class TestRAGImdbIntegration:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         # Test retrieve node error handling
         mock_rag_instance.retrieve_context.side_effect = Exception("Retrieve error")
@@ -633,7 +629,6 @@ class TestRAGImdbIntegration:
         assert 'retrieve_error' in result['metadata']
 
 
-@pytest.mark.integration
 def test_rag_error_resilience():
     """Test rag handles various error conditions gracefully."""
     config = get_config()
@@ -651,7 +646,7 @@ def test_rag_error_resilience():
         mock_llm._generate.side_effect = Exception("LLM API error")
         mock_gemini.return_value = mock_llm
 
-        rag = RAGImdb(bad_config)
+        rag = RAGImdb("gemini-2.0-flash-lite", bad_config)
 
         # Should still create rag
         assert rag is not None
@@ -665,7 +660,6 @@ def test_rag_error_resilience():
         assert any(key.endswith('_error') for key in result['metadata'].keys())
 
 
-@pytest.mark.integration
 @pytest.mark.slow
 def test_end_to_end_rag_mock_dependencies():
     """End-to-end rag test with mocked external dependencies."""
@@ -713,7 +707,7 @@ This movie revolutionized action cinema with its innovative effects.""",
         mock_gemini.return_value = mock_llm
 
         # Create and test rag
-        rag = RAGImdb(config)
+        rag = RAGImdb("gemini-2.0-flash-lite", config)
 
         # Test realistic query
         result = rag.process_query("What are some highly rated action movies worth watching?")

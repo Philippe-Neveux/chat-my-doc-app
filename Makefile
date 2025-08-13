@@ -11,7 +11,7 @@ unit-test:
 	uv run pytest tests/unit -v --cov=src --cov-report=html --cov-report=term
 
 integration-test:
-	uv run pytest tests/integration -v --cov=src --cov-report=html --integration --slow
+	uv run pytest tests/integration -v --cov=src --cov-report=html --slow
 
 ruff:
 	uv run ruff check src --fix --select I

@@ -379,7 +379,7 @@ class TestRAGImdb:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         assert rag.config == sample_config_rag
         assert rag.rag_service == mock_rag_instance
@@ -392,8 +392,8 @@ class TestRAGImdb:
         # Verify GeminiChat was initialized with correct parameters
         mock_gemini.assert_called_once()
         call_kwargs = mock_gemini.call_args[1]
-        assert call_kwargs['api_url'] == 'http://localhost:8000'
         assert call_kwargs['model_name'] == 'gemini-2.0-flash-lite'
+        assert 'system_prompt' in call_kwargs
 
     @patch('chat_my_doc_app.rag.RetrievalService')
     @patch('chat_my_doc_app.rag.GeminiChat')
@@ -410,7 +410,7 @@ class TestRAGImdb:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         # Test retrieve node
         initial_state = RAGImdbState(
@@ -457,7 +457,7 @@ class TestRAGImdb:
         mock_llm_instance._generate.return_value = mock_result
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         # Test generate node
         state_with_context = RAGImdbState(
@@ -490,7 +490,7 @@ class TestRAGImdb:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         result = rag.respond_node(sample_state)
 
@@ -515,7 +515,7 @@ class TestRAGImdb:
         mock_llm_instance = Mock()
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(config_no_citations)
+        rag = RAGImdb("gemini-2.0-flash-lite", config_no_citations)
 
         state = RAGImdbState(
             query="test",
@@ -536,7 +536,7 @@ class TestRAGImdb:
         with patch('chat_my_doc_app.rag.RetrievalService'), \
              patch('chat_my_doc_app.rag.GeminiChat'):
 
-            rag = RAGImdb(sample_config_rag)
+            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
             query = "What are the best movies?"
             context = "Review 1: Great movie with excellent acting."
@@ -553,7 +553,7 @@ class TestRAGImdb:
         with patch('chat_my_doc_app.rag.RetrievalService'), \
              patch('chat_my_doc_app.rag.GeminiChat'):
 
-            rag = RAGImdb(sample_config_rag)
+            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
             response = "This is a great movie."
             citations = [
@@ -582,7 +582,7 @@ class TestRAGImdb:
         with patch('chat_my_doc_app.rag.RetrievalService'), \
              patch('chat_my_doc_app.rag.GeminiChat'):
 
-            rag = RAGImdb(sample_config_rag)
+            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
             response = "This is a response."
             citations = []
@@ -609,7 +609,7 @@ class TestRAGImdb:
         mock_llm_instance.api_url = 'http://localhost:8000'
         mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb(sample_config_rag)
+        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
         info = rag.get_workflow_info()
 
@@ -625,7 +625,7 @@ class TestRAGImdb:
         with patch('chat_my_doc_app.rag.RetrievalService'), \
              patch('chat_my_doc_app.rag.GeminiChat'):
 
-            rag = RAGImdb(sample_config_rag)
+            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
 
             assert isinstance(rag, RAGImdb)
             assert rag.config == sample_config_rag

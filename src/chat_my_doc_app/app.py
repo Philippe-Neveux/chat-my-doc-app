@@ -19,9 +19,11 @@ from typing_extensions import Annotated
 
 from chat_my_doc_app.chats import (
     chat_with_gemini_astream,
+    chat_with_rag_astream,
     clear_conversation_history,
     get_available_models,
 )
+from chat_my_doc_app.rag import RAGImdb
 
 load_dotenv()
 
@@ -35,30 +37,43 @@ def create_chat_interface():
         message: str,
         history: List[dict],
         model_name: str,
-        system_prompt: str
+        system_prompt: str,
+        use_rag: bool = False
     ):
         """Handle user message and generate response."""
         if not message.strip():
             yield "", history
             return
 
-        # Stream the response
+        # Stream the response using RAG or direct chat
         partial_response = ""
-        async for chunk in chat_with_gemini_astream(
-            message, model_name, session_id, system_prompt
-        ):
-            partial_response += chunk
-            # Update the history with current partial response in messages format
-            new_history = history + [
-                {"role": "user", "content": message},
-                {"role": "assistant", "content": partial_response}
-            ]
-            yield "", new_history
+        if use_rag:
+            async for chunk in chat_with_rag_astream(
+                message, model_name, session_id, system_prompt
+            ):
+                partial_response += chunk
+                # Update the history with current partial response in messages format
+                new_history = history + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": partial_response}
+                ]
+                yield "", new_history
+        else:
+            async for chunk in chat_with_gemini_astream(
+                message, model_name, session_id, system_prompt
+            ):
+                partial_response += chunk
+                # Update the history with current partial response in messages format
+                new_history = history + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": partial_response}
+                ]
+                yield "", new_history
 
     # Create the interface
     with gr.Blocks(title="Chat My Doc App") as interface:
         gr.Markdown("# Chat My Doc App")
-        gr.Markdown("Chat with Google's Gemini AI models using LangChain")
+        gr.Markdown("Chat with Google's Gemini AI models using LangChain + RAG on IMDB movie reviews")
 
         with gr.Row():
             with gr.Column(scale=4):
@@ -87,11 +102,18 @@ def create_chat_interface():
                 )
 
                 system_prompt_input = gr.Textbox(
-                    value="You are a helpful assistant.",
+                    value=RAGImdb.get_default_system_prompt(),
                     label="System Prompt",
                     placeholder="Enter system prompt...",
                     lines=3,
                     interactive=True
+                )
+
+                # RAG toggle
+                rag_toggle = gr.Checkbox(
+                    label="Enable RAG (Movie Reviews)",
+                    value=True,
+                    info="Use IMDB movie review database for context"
                 )
 
                 clear_btn = gr.Button("Clear Chat", variant="secondary")
@@ -99,13 +121,19 @@ def create_chat_interface():
         # Event handlers
         msg.submit(
             respond,
-            inputs=[msg, chatbot, model_dropdown, system_prompt_input],
+            inputs=[
+                msg, chatbot, model_dropdown,
+                system_prompt_input, rag_toggle
+            ],
             outputs=[msg, chatbot]
         )
 
         send_btn.click(
             respond,
-            inputs=[msg, chatbot, model_dropdown, system_prompt_input],
+            inputs=[
+                msg, chatbot, model_dropdown,
+                system_prompt_input, rag_toggle
+            ],
             outputs=[msg, chatbot]
         )
 

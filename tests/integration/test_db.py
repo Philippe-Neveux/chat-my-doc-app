@@ -6,7 +6,7 @@ These tests require:
 2. Environment variables set (if authentication required)
 3. A collection with test data
 
-Tests are marked with @pytest.mark.integration and can be skipped
+Tests are marked with and can be skipped
 by running: pytest -m "not integration"
 """
 
@@ -16,7 +16,6 @@ from chat_my_doc_app.config import get_config
 from chat_my_doc_app.db import QdrantService
 
 
-@pytest.mark.integration
 class TestQdrantIntegration:
     """Integration tests for QdrantService."""
 
@@ -56,7 +55,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_qdrant_connection(self):
-        """Test connection to Qdrant server (slow test)."""
+        """Test connection to Qdrant server."""
         service = QdrantService(self.config)
 
         # Test connection
@@ -65,7 +64,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_collection_exists(self):
-        """Test that the configured collection exists (slow test)."""
+        """Test that the configured collection exists."""
         service = QdrantService(self.config)
 
         collection_exists = service.check_collection_exists()
@@ -100,7 +99,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_similarity_search_basic(self):
-        """Test basic similarity search functionality (slow test)."""
+        """Test basic similarity search functionality."""
         service = QdrantService(self.config)
 
         # Test search with basic parameters
@@ -121,7 +120,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_similarity_search_with_threshold(self):
-        """Test similarity search with score threshold (slow test)."""
+        """Test similarity search with score threshold."""
         service = QdrantService(self.config)
 
         query = "excellent movie"
@@ -138,7 +137,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_similarity_search_limit_enforcement(self):
-        """Test that search respects configured limits (slow test)."""
+        """Test that search respects configured limits)."""
         service = QdrantService(self.config)
 
         # Test with limit higher than max_limit in config
@@ -153,7 +152,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_search_with_metadata_filter(self):
-        """Test search with metadata filtering (slow test)."""
+        """Test search with metadata filtering."""
         service = QdrantService(self.config)
 
         # This test assumes your data has some metadata fields
@@ -191,7 +190,7 @@ class TestQdrantIntegration:
 
     @pytest.mark.slow
     def test_search_by_metadata_only(self):
-        """Test metadata-only search functionality (slow test)."""
+        """Test metadata-only search functionality."""
         service = QdrantService(self.config)
 
         try:
@@ -220,7 +219,6 @@ def qdrant_service():
     return QdrantService(config)
 
 
-@pytest.mark.integration
 @pytest.mark.slow
 def test_end_to_end_search_workflow(qdrant_service):
     """End-to-end test of the complete search workflow."""

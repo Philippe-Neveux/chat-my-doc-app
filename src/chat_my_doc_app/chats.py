@@ -5,16 +5,17 @@ This module provides chat functionality with conversation memory using
 a custom LangChain BaseChatModel that connects to your deployed API.
 """
 import os
-from typing import Annotated, Any, AsyncIterator, Iterator, List, TypedDict, cast
+from typing import Annotated, Any, AsyncIterator, List, TypedDict, cast
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage
+from langchain_core.messages import BaseMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph, add_messages
 from loguru import logger
 
 from chat_my_doc_app.llms import GeminiChat
+from chat_my_doc_app.rag import RAGImdb
 
 load_dotenv()
 
@@ -27,11 +28,6 @@ checkpointer = InMemorySaver()
 
 async def chat_node(state: State, config: RunnableConfig) -> State:
     """Chat node that processes messages and generates responses with streaming."""
-    # Get API URL from environment variable
-    api_url = os.getenv("CLOUD_RUN_API_URL")
-    if not api_url:
-        raise ValueError("CLOUD_RUN_API_URL environment variable is not set")
-
     # Get model name from config metadata, fallback to default
     model_name = config.get("configurable", {}).get("model_name")
     if not model_name:
@@ -43,9 +39,8 @@ async def chat_node(state: State, config: RunnableConfig) -> State:
     logger.debug(f"Using model: {model_name}")
     logger.debug(f"System prompt: {system_prompt}")
 
-    # Configure the custom LangChain model
+    # Configure the custom LangChain model (GeminiChat will get API URL from environment)
     llm = GeminiChat(
-        api_url=api_url,
         model_name=model_name,
         system_prompt=system_prompt
     )
@@ -120,6 +115,38 @@ async def chat_with_gemini_astream(
         logger.error(error_msg)
         yield error_msg
 
+
+async def chat_with_rag_astream(
+    message: str,
+    model_name: str,
+    session_id: str = "default",
+    system_prompt: str = "You are a helpful movie review assistant."
+) -> AsyncIterator[str]:
+    """
+    Chat with deployed Gemini API using RAG workflow for movie reviews with real streaming.
+
+    Args:
+        message: User message
+        model_name: Gemini model to use
+        session_id: Session identifier for conversation history
+        system_prompt: System prompt to use for the conversation
+
+    Yields:
+        str: Streaming response chunks
+    """
+    try:
+        # Initialize RAG workflow - now using the proper RAGImdb class!
+        rag_workflow = RAGImdb(model_name, system_prompt=system_prompt)
+
+        # Use the RAGImdb streaming method instead of manual implementation
+        async for chunk in rag_workflow.process_query_stream(message):
+            yield chunk
+
+    except Exception as e:
+        error_msg = f"RAG Error: {str(e)}"
+        logger.error(error_msg)
+        yield error_msg
+
 def get_conversation_history(session_id: str) -> List[BaseMessage]:
     """Get conversation history for a session using LangGraph state."""
     config: RunnableConfig = {"configurable": {"thread_id": session_id}}
@@ -157,3 +184,15 @@ def get_available_models() -> List[str]:
         "gemini-2.0-flash",
         "gemini-1.5-pro"
     ]
+
+
+def if_rag_connection_works() -> bool:
+    """Test if RAG system is properly configured and accessible."""
+    try:
+        rag_workflow = RAGImdb("gemini-2.0-flash-lite")
+        info = rag_workflow.get_workflow_info()
+        logger.info(f"RAG system connected: {info['workflow_type']}")
+        return True
+    except Exception as e:
+        logger.error(f"RAG system connection failed: {str(e)}")
+        return False

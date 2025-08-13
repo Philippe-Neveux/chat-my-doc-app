@@ -7,9 +7,9 @@ It handles the complete pipeline from user query to formatted context.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, TypedDict, cast
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 from loguru import logger
 
@@ -424,30 +424,34 @@ class RAGImdbState(TypedDict):
 class RAGImdb:
     """LangGraph workflow for RAG processing."""
 
-    def __init__(self, config_dict: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        model_name: str,
+        config_dict: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None
+    ):
         """
         Initialize RAG workflow.
 
         Args:
+            model_name: Name of the Gemini model to use (e.g., "gemini-2.0-flash-lite")
             config_dict: Configuration dictionary. If None, loads from default config.
+            system_prompt: Custom system prompt. If None, uses default movie review assistant prompt.
         """
         if config_dict is None:
             config_dict = get_config()
 
         self.config = config_dict
         self.rag_config = config_dict.get('rag', {})
+        self.model_name = model_name
 
         # Initialize RAG service
         self.rag_service = RetrievalService(config_dict)
 
-        # Initialize LLM - you'll need to configure this based on your setup
-        llm_config = config_dict.get('llm', {})
-        api_url = llm_config.get('api_url', 'http://localhost:8000')  # Default for development
-
+        # Initialize LLM (GeminiChat will get API URL from environment)
         self.llm = GeminiChat(
-            api_url=api_url,
-            model_name=llm_config.get('model_name'),
-            system_prompt=self._get_default_system_prompt()
+            model_name=model_name,
+            system_prompt=system_prompt or self.get_default_system_prompt()
         )
 
         # Build the workflow graph
@@ -455,7 +459,8 @@ class RAGImdb:
 
         logger.info("RAGImdb initialized successfully")
 
-    def _get_default_system_prompt(self) -> str:
+    @staticmethod
+    def get_default_system_prompt() -> str:
         """Get default system prompt for the LLM."""
         return """You are a helpful movie review assistant. You help users find and understand movie reviews from the IMDB dataset.
 
@@ -468,7 +473,7 @@ Instructions:
 
 Always be honest about what information is available in the context."""
 
-    def _build_workflow(self) -> StateGraph:
+    def _build_workflow(self):
         """Build the LangGraph workflow."""
 
         # Define the workflow graph
@@ -517,7 +522,7 @@ Always be honest about what information is available in the context."""
             )
 
             # Update state
-            return RAGImdbState({
+            return {
                 **state,
                 "context": context,
                 "citations": citations,
@@ -526,11 +531,11 @@ Always be honest about what information is available in the context."""
                     "retrieved_docs": len(citations),
                     "context_length": len(context)
                 }
-            })
+            }
 
         except Exception as e:
             logger.error(f"Error in retrieve node: {str(e)}")
-            return RAGImdbState({
+            return {
                 **state,
                 "context": f"Error retrieving information: {str(e)}",
                 "citations": [],
@@ -538,7 +543,7 @@ Always be honest about what information is available in the context."""
                     **state.get("metadata", {}),
                     "retrieve_error": str(e)
                 }
-            })
+            }
 
     def generate_node(self, state: RAGImdbState) -> RAGImdbState:
         """
@@ -557,13 +562,13 @@ Always be honest about what information is available in the context."""
             prompt = self._create_generation_prompt(state['query'], state['context'])
 
             # Generate response using LLM
-            messages = [HumanMessage(content=prompt)]
+            messages = cast(List[BaseMessage], [HumanMessage(content=prompt)])
             result = self.llm._generate(messages)
 
             # Extract generated text
             generated_response = result.generations[0].message.content
 
-            return RAGImdbState({
+            return {
                 **state,
                 "response": generated_response,
                 "metadata": {
@@ -571,18 +576,18 @@ Always be honest about what information is available in the context."""
                     "generated": True,
                     "response_length": len(generated_response)
                 }
-            })
+            }
 
         except Exception as e:
             logger.error(f"Error in generate node: {str(e)}")
-            return RAGImdbState({
+            return {
                 **state,
                 "response": f"Error generating response: {str(e)}",
                 "metadata": {
                     **state.get("metadata", {}),
                     "generate_error": str(e)
                 }
-            })
+            }
 
     def respond_node(self, state: RAGImdbState) -> RAGImdbState:
         """
@@ -605,7 +610,7 @@ Always be honest about what information is available in the context."""
             if generation_config.get('include_sources', True) and citations:
                 response = self._add_citations_to_response(response, citations)
 
-            return RAGImdbState({
+            return {
                 **state,
                 "response": response,
                 "metadata": {
@@ -613,7 +618,7 @@ Always be honest about what information is available in the context."""
                     "final_response_length": len(response),
                     "citations_included": len(citations) > 0
                 }
-            })
+            }
 
         except Exception as e:
             logger.error(f"Error in respond node: {str(e)}")
@@ -702,7 +707,7 @@ Please provide a helpful and informative answer based on the context above. If t
         logger.info(f"Processing query through RAG workflow: '{query[:50]}...'")
 
         # Initialize workflow state
-        initial_state = RAGImdbState({
+        initial_state = {
             "query": query,
             "context": "",
             "citations": [],
@@ -711,24 +716,26 @@ Please provide a helpful and informative answer based on the context above. If t
                 "query_length": len(query),
                 "workflow_started": True
             }
-        })
+        }
 
         try:
             # Run the workflow
-            final_state = self.workflow.invoke(initial_state)
+            final_state = self.workflow.invoke(cast(RAGImdbState, initial_state))
 
             logger.info("RAG workflow completed successfully")
 
-            return RAGImdbState({
+            return {
+                "query": initial_state["query"],
                 "response": final_state["response"],
                 "citations": final_state.get("citations", []),
                 "context": final_state.get("context", ""),
                 "metadata": final_state.get("metadata", {})
-            })
+            }
 
         except Exception as e:
             logger.error(f"Error in RAG workflow: {str(e)}")
-            return RAGImdbState({
+            return {
+                "query": initial_state["query"],
                 "response": f"I apologize, but I encountered an error processing your query: {str(e)}",
                 "citations": [],
                 "context": "",
@@ -736,7 +743,81 @@ Please provide a helpful and informative answer based on the context above. If t
                     "error": str(e),
                     "workflow_failed": True
                 }
-            })
+            }
+
+    async def process_query_stream(self, query: str) -> AsyncIterator[str]:
+        """
+        Process a user query through the RAG workflow with streaming response.
+
+        Args:
+            query: User query string
+
+        Yields:
+            str: Streaming response chunks with citations
+        """
+        logger.info(f"Processing query through RAG workflow with streaming: '{query[:50]}...'")
+
+        try:
+            # Step 1: Retrieve context
+            logger.info("Step 1: Retrieving context...")
+            context, citations = self.rag_service.retrieve_context(
+                query=query,
+                limit=self.config.get('qdrant', {}).get('search', {}).get('default_limit', 5),
+                score_threshold=self.config.get('qdrant', {}).get('search', {}).get('default_score_threshold', 0.0),
+                include_citations=self.rag_config.get('generation', {}).get('include_sources', True)
+            )
+
+            # Step 2: Create generation prompt
+            logger.info("Step 2: Creating generation prompt...")
+            prompt = self._create_generation_prompt(query, context)
+
+            # Step 3: Stream LLM response
+            logger.info("Step 3: Streaming LLM response...")
+            messages = cast(List[BaseMessage], [HumanMessage(content=prompt)])
+
+            response_chunks = []
+            async for chunk in self.llm._astream(messages):
+                if hasattr(chunk, 'message') and chunk.message and hasattr(chunk.message, 'content'):
+                    content = chunk.message.content
+                    if isinstance(content, str):
+                        response_chunks.append(content)
+                        yield content
+
+            # Step 4: Add citations if enabled
+            if self.rag_config.get('generation', {}).get('include_sources', True) and citations:
+                logger.info("Step 4: Adding citations...")
+                # Generate just the citations section
+                citation_text = "\n\n**Sources:**\n"
+                for citation in citations:
+                    citation_id = citation.get('id', 'Unknown')
+                    score = citation.get('score', 0.0)
+                    movie_title = citation.get('movie_title', 'Unknown Movie')
+                    review_title = citation.get('review_title', '')
+                    year = citation.get('year', '')
+                    genre = citation.get('genre', '')
+
+                    citation_line = f"{citation_id}. **{movie_title}**"
+                    if year:
+                        citation_line += f" ({year})"
+                    if genre:
+                        citation_line += f" - {genre}"
+                    if review_title:
+                        citation_line += f"\n   Review: \"{review_title}\""
+                    citation_line += f" (Relevance: {score:.2f})\n"
+                    citation_text += citation_line
+
+                yield citation_text
+
+            # Log completion metadata
+            full_response = ''.join(response_chunks)
+            logger.info(f"RAG streaming completed - Retrieved docs: {len(citations)}, " +
+                       f"Context length: {len(context)}, " +
+                       f"Response length: {len(full_response)}, " +
+                       f"Citations: {len(citations) > 0}")
+
+        except Exception as e:
+            logger.error(f"Error in RAG streaming workflow: {str(e)}")
+            yield f"I apologize, but I encountered an error processing your query: {str(e)}"
 
     def get_workflow_info(self) -> Dict[str, Any]:
         """
@@ -755,7 +836,7 @@ Please provide a helpful and informative answer based on the context above. If t
             },
             "llm": {
                 "type": "GeminiChat",
-                "model_name": self.llm.model_name,
-                "api_url": self.llm.api_url
+                "api_url": self.llm.api_url,
+                "model_name": self.model_name
             }
         }

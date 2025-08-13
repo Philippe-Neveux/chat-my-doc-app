@@ -21,7 +21,7 @@ def demo_rag_workflow():
     try:
         # Initialize RAG workflow
         print("\n🚀 Initializing RAG LangGraph workflow...")
-        workflow = RAGImdb()
+        workflow = RAGImdb("gemini-2.0-flash-lite")
         print("✅ RAG workflow initialized successfully!")
 
         # Show workflow information
