@@ -9,8 +9,9 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 
 from chat_my_doc_app.rag import (
-    RAGService,
-    DocumentSource
+    RetrievalService,
+    DocumentSource,
+    RAGImdb, RAGImdbState
 )
 
 
@@ -97,16 +98,16 @@ class TestDocumentSource:
         assert "0.123" in repr(doc)
 
 
-class TestRAGService:
-    """Test the RAGService class."""
+class TestRetrievalService:
+    """Test the RetrievalService class."""
 
     @patch('chat_my_doc_app.rag.QdrantService')
     def test_rag_service_initialization(self, mock_qdrant_class, sample_config):
-        """Test RAGService initialization."""
+        """Test RetrievalService initialization."""
         mock_qdrant = Mock()
         mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+        service = RetrievalService(sample_config)
 
         assert service.config == sample_config
         assert service.max_context_length == 2000
@@ -119,7 +120,7 @@ class TestRAGService:
     def test_preprocess_query(self, sample_config):
         """Test query preprocessing."""
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         # Test basic cleaning
         assert service.preprocess_query("  hello world  ") == "hello world"
@@ -143,7 +144,7 @@ class TestRAGService:
         mock_qdrant.similarity_search.return_value = mock_search_results
         mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+        service = RetrievalService(sample_config)
 
         # Test retrieval
         docs = service.retrieve_documents("great movies", limit=2, score_threshold=0.5)
@@ -170,7 +171,7 @@ class TestRAGService:
         mock_qdrant = Mock()
         mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+        service = RetrievalService(sample_config)
 
         # Test empty query
         docs = service.retrieve_documents("")
@@ -183,7 +184,7 @@ class TestRAGService:
     def test_format_documents_for_context(self, sample_config, sample_documents):
         """Test document formatting for context."""
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         # Test formatting with markdown
         context = service.format_documents_for_context(sample_documents)
@@ -204,7 +205,7 @@ class TestRAGService:
         sample_config['rag']['generation']['source_format'] = 'plain'
 
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         context = service.format_documents_for_context(sample_documents)
 
@@ -215,7 +216,7 @@ class TestRAGService:
     def test_format_documents_empty_list(self, sample_config):
         """Test formatting with empty document list."""
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         context = service.format_documents_for_context([])
         assert context == "No relevant documents found."
@@ -229,7 +230,7 @@ class TestRAGService:
         sample_config['rag']['max_context_length'] = 500  # Very short limit
 
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         context = service.format_documents_for_context([long_doc])
 
@@ -240,7 +241,7 @@ class TestRAGService:
     def test_generate_citations(self, sample_config, sample_documents):
         """Test citation generation."""
         with patch('chat_my_doc_app.rag.QdrantService'):
-            service = RAGService(sample_config)
+            service = RetrievalService(sample_config)
 
         # Set citation IDs (normally done by format_documents_for_context)
         for i, doc in enumerate(sample_documents, 1):
@@ -269,7 +270,7 @@ class TestRAGService:
         mock_qdrant.similarity_search.return_value = mock_search_results
         mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+        service = RetrievalService(sample_config)
 
         # Test complete pipeline
         context, citations = service.retrieve_context("tell me about great movies")
@@ -298,47 +299,333 @@ class TestRAGService:
         mock_qdrant.similarity_search.return_value = []
         mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+        service = RetrievalService(sample_config)
 
         context, citations = service.retrieve_context("non-existent topic")
 
         assert context == "No relevant information found for your query."
         assert citations == []
 
-    @patch('chat_my_doc_app.rag.QdrantService')
-    def test_get_retrieval_stats(self, mock_qdrant_class, sample_config):
-        """Test retrieval statistics generation."""
-        mock_qdrant = Mock()
-        mock_search_results = [
-            ({'id': 'doc1', 'payload': {'text': 'Text 1'}}, 0.95),
-            ({'id': 'doc2', 'payload': {'text': 'Text 2'}}, 0.75),
-            ({'id': 'doc3', 'payload': {'text': 'Text 3'}}, 0.55)
-        ]
-        mock_qdrant.similarity_search.return_value = mock_search_results
-        mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
 
-        stats = service.get_retrieval_stats("test query")
 
-        assert stats['query'] == 'test query'
-        assert stats['processed_query'] == 'test query'
-        assert stats['total_results'] == 3
-        assert stats['avg_score'] == (0.95 + 0.75 + 0.55) / 3
-        assert stats['score_range'] == (0.55, 0.95)
-        assert stats['top_score'] == 0.95
+@pytest.fixture
+def sample_config_rag():
+    """Sample configuration for testing."""
+    return {
+        'qdrant': {
+            'host': 'localhost',
+            'port': 6333,
+            'collection_name': 'test_collection',
+            'search': {
+                'default_limit': 5,
+                'default_score_threshold': 0.0,
+                'max_limit': 20
+            }
+        },
+        'embedding': {
+            'model_name': 'all-MiniLM-L6-v2'
+        },
+        'rag': {
+            'max_context_length': 2000,
+            'context_overlap': 100,
+            'retrieval': {
+                'chunk_size': 300,
+                'chunk_overlap': 50,
+                'min_chunk_size': 50
+            },
+            'generation': {
+                'include_sources': True,
+                'source_format': 'markdown'
+            }
+        },
+        'llm': {
+            'api_url': 'http://localhost:8000',
+            'model_name': 'gemini-2.0-flash-lite',
+            'system_prompt': 'You are a test assistant.'
+        }
+    }
 
-    @patch('chat_my_doc_app.rag.QdrantService')
-    def test_get_retrieval_stats_no_results(self, mock_qdrant_class, sample_config):
-        """Test retrieval statistics with no results."""
-        mock_qdrant = Mock()
-        mock_qdrant.similarity_search.return_value = []
-        mock_qdrant_class.return_value = mock_qdrant
 
-        service = RAGService(sample_config)
+@pytest.fixture
+def sample_state():
+    """Sample workflow state for testing."""
+    return RAGImdbState(
+        query="What are good action movies?",
+        context="**Source 1** (Score: 0.95)\nGreat action movie with amazing effects.",
+        citations=[{
+            'id': 1,
+            'document_id': 'doc1',
+            'score': 0.95,
+            'movie_title': 'Action Hero',
+            'year': '2023',
+            'genre': 'Action'
+        }],
+        response="Based on the reviews, Action Hero is a great action movie.",
+        metadata={'test': True}
+    )
 
-        stats = service.get_retrieval_stats("empty query")
 
-        assert stats['total_results'] == 0
-        assert stats['avg_score'] == 0.0
-        assert stats['score_range'] == (0.0, 0.0)
+class TestRAGImdb:
+    """Test the TestRAGImdb class."""
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_rag_initialization(self, mock_gemini, mock_rag_service, sample_config_rag):
+        """Test RAGImdb initialization."""
+        mock_rag_instance = Mock()
+        mock_rag_service.return_value = mock_rag_instance
+
+        mock_llm_instance = Mock()
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(sample_config_rag)
+
+        assert rag.config == sample_config_rag
+        assert rag.rag_service == mock_rag_instance
+        assert rag.llm == mock_llm_instance
+        assert rag.workflow is not None
+
+        # Verify RetrievalService was initialized correctly
+        mock_rag_service.assert_called_once_with(sample_config_rag)
+
+        # Verify GeminiChat was initialized with correct parameters
+        mock_gemini.assert_called_once()
+        call_kwargs = mock_gemini.call_args[1]
+        assert call_kwargs['api_url'] == 'http://localhost:8000'
+        assert call_kwargs['model_name'] == 'gemini-2.0-flash-lite'
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_retrieve_node(self, mock_gemini, mock_rag_service, sample_config_rag):
+        """Test the retrieve node functionality."""
+        # Setup mocks
+        mock_rag_instance = Mock()
+        mock_rag_instance.retrieve_context.return_value = (
+            "Test context with movie reviews",
+            [{'id': 1, 'score': 0.9, 'movie_title': 'Test Movie'}]
+        )
+        mock_rag_service.return_value = mock_rag_instance
+
+        mock_llm_instance = Mock()
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(sample_config_rag)
+
+        # Test retrieve node
+        initial_state = RAGImdbState(
+            query="test query",
+            context="",
+            citations=[],
+            response="",
+            metadata={}
+        )
+
+        result = rag.retrieve_node(initial_state)
+
+        # Verify the retrieve_context was called correctly
+        mock_rag_instance.retrieve_context.assert_called_once_with(
+            query="test query",
+            limit=5,
+            score_threshold=0.0,
+            include_citations=True
+        )
+
+        # Verify state updates
+        assert result['query'] == "test query"
+        assert result['context'] == "Test context with movie reviews"
+        assert len(result['citations']) == 1
+        assert result['citations'][0]['movie_title'] == 'Test Movie'
+        assert result['metadata']['retrieved_docs'] == 1
+        assert result['metadata']['context_length'] == len("Test context with movie reviews")
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_generate_node(self, mock_gemini, mock_rag_service, sample_config_rag):
+        """Test the generate node functionality."""
+        # Setup mocks
+        mock_rag_instance = Mock()
+        mock_rag_service.return_value = mock_rag_instance
+
+        # Mock LLM response
+        mock_generation = Mock()
+        mock_generation.message.content = "This is a generated response about movies."
+        mock_result = Mock()
+        mock_result.generations = [mock_generation]
+
+        mock_llm_instance = Mock()
+        mock_llm_instance._generate.return_value = mock_result
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(sample_config_rag)
+
+        # Test generate node
+        state_with_context = RAGImdbState(
+            query="What are good movies?",
+            context="Context about great movies",
+            citations=[],
+            response="",
+            metadata={}
+        )
+
+        result = rag.generate_node(state_with_context)
+
+        # Verify LLM was called
+        mock_llm_instance._generate.assert_called_once()
+
+        # Verify state updates
+        assert result['query'] == "What are good movies?"
+        assert result['context'] == "Context about great movies"
+        assert result['response'] == "This is a generated response about movies."
+        assert result['metadata']['generated'] is True
+        assert result['metadata']['response_length'] == len("This is a generated response about movies.")
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_respond_node(self, mock_gemini, mock_rag_service, sample_config_rag, sample_state):
+        """Test the respond node functionality."""
+        mock_rag_instance = Mock()
+        mock_rag_service.return_value = mock_rag_instance
+
+        mock_llm_instance = Mock()
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(sample_config_rag)
+
+        result = rag.respond_node(sample_state)
+
+        # Should include citations in response since include_sources is True
+        assert result['query'] == sample_state['query']
+        assert result['response'] != sample_state['response']  # Should be modified with citations
+        assert "Sources:" in result['response']
+        assert "Action Hero" in result['response']
+        assert result['metadata']['citations_included'] is True
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_respond_node_no_citations(self, mock_gemini, mock_rag_service, sample_config_rag):
+        """Test respond node with citations disabled."""
+        # Modify config to disable citations
+        config_no_citations = sample_config_rag.copy()
+        config_no_citations['rag']['generation']['include_sources'] = False
+
+        mock_rag_instance = Mock()
+        mock_rag_service.return_value = mock_rag_instance
+
+        mock_llm_instance = Mock()
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(config_no_citations)
+
+        state = RAGImdbState(
+            query="test",
+            context="context",
+            citations=[{'id': 1, 'movie_title': 'Movie'}],
+            response="Original response",
+            metadata={}
+        )
+
+        result = rag.respond_node(state)
+
+        # Should NOT include citations
+        assert result['response'] == "Original response"
+        assert "Sources:" not in result['response']
+
+    def test_create_generation_prompt(self, sample_config_rag):
+        """Test generation prompt creation."""
+        with patch('chat_my_doc_app.rag.RetrievalService'), \
+             patch('chat_my_doc_app.rag.GeminiChat'):
+
+            rag = RAGImdb(sample_config_rag)
+
+            query = "What are the best movies?"
+            context = "Review 1: Great movie with excellent acting."
+
+            prompt = rag._create_generation_prompt(query, context)
+
+            assert query in prompt
+            assert context in prompt
+            assert "Based on the following context" in prompt
+            assert "User Question:" in prompt
+
+    def test_add_citations_to_response(self, sample_config_rag):
+        """Test citation formatting."""
+        with patch('chat_my_doc_app.rag.RetrievalService'), \
+             patch('chat_my_doc_app.rag.GeminiChat'):
+
+            rag = RAGImdb(sample_config_rag)
+
+            response = "This is a great movie."
+            citations = [
+                {
+                    'id': 1,
+                    'score': 0.95,
+                    'movie_title': 'Action Hero',
+                    'year': '2023',
+                    'genre': 'Action',
+                    'review_title': 'Amazing film'
+                }
+            ]
+
+            result = rag._add_citations_to_response(response, citations)
+
+            assert "This is a great movie." in result
+            assert "**Sources:**" in result
+            assert "1. **Action Hero**" in result
+            assert "(2023)" in result
+            assert "Action" in result
+            assert "Amazing film" in result
+            assert "(Relevance: 0.95)" in result
+
+    def test_add_citations_empty_list(self, sample_config_rag):
+        """Test citation formatting with empty citations."""
+        with patch('chat_my_doc_app.rag.RetrievalService'), \
+             patch('chat_my_doc_app.rag.GeminiChat'):
+
+            rag = RAGImdb(sample_config_rag)
+
+            response = "This is a response."
+            citations = []
+
+            result = rag._add_citations_to_response(response, citations)
+
+            # Should return original response unchanged
+            assert result == response
+            assert "Sources:" not in result
+
+    @patch('chat_my_doc_app.rag.RetrievalService')
+    @patch('chat_my_doc_app.rag.GeminiChat')
+    def test_get_rag_info(self, mock_gemini, mock_rag_service, sample_config_rag):
+        """Test rag information retrieval."""
+        # Setup mocks with attributes
+        mock_rag_instance = Mock()
+        mock_rag_instance.max_context_length = 2000
+        mock_rag_instance.source_format = 'markdown'
+        mock_rag_instance.include_sources = True
+        mock_rag_service.return_value = mock_rag_instance
+
+        mock_llm_instance = Mock()
+        mock_llm_instance.model_name = 'gemini-2.0-flash-lite'
+        mock_llm_instance.api_url = 'http://localhost:8000'
+        mock_gemini.return_value = mock_llm_instance
+
+        rag = RAGImdb(sample_config_rag)
+
+        info = rag.get_workflow_info()
+
+        assert info['workflow_type'] == "RAG with LangGraph"
+        assert info['nodes'] == ["retrieve", "generate", "respond"]
+        assert info['rag_service']['max_context_length'] == 2000
+        assert info['rag_service']['source_format'] == 'markdown'
+        assert info['llm']['type'] == 'GeminiChat'
+        assert info['llm']['model_name'] == 'gemini-2.0-flash-lite'
+
+    def test_factory_function(self, sample_config_rag):
+        """Test the create_rag_workflow factory function."""
+        with patch('chat_my_doc_app.rag.RetrievalService'), \
+             patch('chat_my_doc_app.rag.GeminiChat'):
+
+            rag = RAGImdb(sample_config_rag)
+
+            assert isinstance(rag, RAGImdb)
+            assert rag.config == sample_config_rag

@@ -7,12 +7,15 @@ It handles the complete pipeline from user query to formatted context.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
+from langchain_core.messages import HumanMessage
+from langgraph.graph import END, StateGraph
 from loguru import logger
 
 from chat_my_doc_app.config import get_config
 from chat_my_doc_app.db import QdrantService
+from chat_my_doc_app.llms import GeminiChat
 
 
 class DocumentSource:
@@ -29,7 +32,7 @@ class DocumentSource:
         return f"DocumentSource(id={self.id}, score={self.score:.3f})"
 
 
-class RAGService:
+class RetrievalService:
     """Service for Retrieval Augmented Generation pipeline."""
 
     def __init__(self, config_dict: Optional[Dict[str, Any]] = None):
@@ -63,7 +66,7 @@ class RAGService:
         self.include_sources = generation_config.get('include_sources')
         self.source_format = generation_config.get('source_format', 'markdown')
 
-        logger.info("RAGService initialized successfully")
+        logger.info("RetrievalService initialized successfully")
 
     def preprocess_query(self, query: str) -> str:
         """
@@ -407,3 +410,352 @@ class RAGService:
         filtered_citations = filtered_citations[:limit]
 
         return context, filtered_citations
+
+
+class RAGImdbState(TypedDict):
+    """State structure for the RAG workflow."""
+    query: str
+    context: str
+    citations: List[Dict[str, Any]]
+    response: str
+    metadata: Dict[str, Any]
+
+
+class RAGImdb:
+    """LangGraph workflow for RAG processing."""
+
+    def __init__(self, config_dict: Optional[Dict[str, Any]] = None):
+        """
+        Initialize RAG workflow.
+
+        Args:
+            config_dict: Configuration dictionary. If None, loads from default config.
+        """
+        if config_dict is None:
+            config_dict = get_config()
+
+        self.config = config_dict
+        self.rag_config = config_dict.get('rag', {})
+
+        # Initialize RAG service
+        self.rag_service = RetrievalService(config_dict)
+
+        # Initialize LLM - you'll need to configure this based on your setup
+        llm_config = config_dict.get('llm', {})
+        api_url = llm_config.get('api_url', 'http://localhost:8000')  # Default for development
+
+        self.llm = GeminiChat(
+            api_url=api_url,
+            model_name=llm_config.get('model_name'),
+            system_prompt=self._get_default_system_prompt()
+        )
+
+        # Build the workflow graph
+        self.workflow = self._build_workflow()
+
+        logger.info("RAGImdb initialized successfully")
+
+    def _get_default_system_prompt(self) -> str:
+        """Get default system prompt for the LLM."""
+        return """You are a helpful movie review assistant. You help users find and understand movie reviews from the IMDB dataset.
+
+Instructions:
+1. Use the provided context to answer user questions about movies and reviews
+2. Be specific and cite information from the reviews when possible
+3. If the context doesn't contain relevant information, say so clearly
+4. Focus on movie-related queries: reviews, ratings, genres, years, actors, etc.
+5. Provide helpful and informative responses based on the review data
+
+Always be honest about what information is available in the context."""
+
+    def _build_workflow(self) -> StateGraph:
+        """Build the LangGraph workflow."""
+
+        # Define the workflow graph
+        workflow = (
+            StateGraph(RAGImdbState)
+            # Define nodes for each step in the workflow
+            .add_node("retrieve", self.retrieve_node)
+            .add_node("generate", self.generate_node)
+            .add_node("respond", self.respond_node)
+            # Define edges
+            .set_entry_point("retrieve")
+            .add_edge("retrieve", "generate")
+            .add_edge("generate", "respond")
+            .add_edge("respond", END)
+        ).compile()
+
+        return workflow
+
+    def retrieve_node(self, state: RAGImdbState) -> RAGImdbState:
+        """
+        Retrieve relevant documents using RAG service.
+
+        Args:
+            state: Current workflow state
+
+        Returns:
+            Updated state with context and citations
+        """
+        try:
+            logger.info(f"Retrieving context for query: '{state['query'][:50]}...'")
+
+            # Get retrieval parameters from config
+            generation_config = self.rag_config.get('generation', {})
+            search_config = self.config.get('qdrant', {}).get('search', {})
+
+            limit = search_config.get('default_limit', 5)
+            score_threshold = search_config.get('default_score_threshold', 0.0)
+            include_citations = generation_config.get('include_sources', True)
+
+            # Use RAG service to retrieve context
+            context, citations = self.rag_service.retrieve_context(
+                query=state['query'],
+                limit=limit,
+                score_threshold=score_threshold,
+                include_citations=include_citations
+            )
+
+            # Update state
+            return RAGImdbState({
+                **state,
+                "context": context,
+                "citations": citations,
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "retrieved_docs": len(citations),
+                    "context_length": len(context)
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error in retrieve node: {str(e)}")
+            return RAGImdbState({
+                **state,
+                "context": f"Error retrieving information: {str(e)}",
+                "citations": [],
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "retrieve_error": str(e)
+                }
+            })
+
+    def generate_node(self, state: RAGImdbState) -> RAGImdbState:
+        """
+        Generate response using LLM with retrieved context.
+
+        Args:
+            state: Current workflow state
+
+        Returns:
+            Updated state with generated response
+        """
+        try:
+            logger.info("Generating response using LLM")
+
+            # Create prompt with context
+            prompt = self._create_generation_prompt(state['query'], state['context'])
+
+            # Generate response using LLM
+            messages = [HumanMessage(content=prompt)]
+            result = self.llm._generate(messages)
+
+            # Extract generated text
+            generated_response = result.generations[0].message.content
+
+            return RAGImdbState({
+                **state,
+                "response": generated_response,
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "generated": True,
+                    "response_length": len(generated_response)
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error in generate node: {str(e)}")
+            return RAGImdbState({
+                **state,
+                "response": f"Error generating response: {str(e)}",
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "generate_error": str(e)
+                }
+            })
+
+    def respond_node(self, state: RAGImdbState) -> RAGImdbState:
+        """
+        Format final response with optional citations.
+
+        Args:
+            state: Current workflow state
+
+        Returns:
+            Final state with formatted response
+        """
+        try:
+            logger.info("Formatting final response")
+
+            response = state['response']
+            citations = state.get('citations', [])
+
+            # Add citations if enabled and available
+            generation_config = self.rag_config.get('generation', {})
+            if generation_config.get('include_sources', True) and citations:
+                response = self._add_citations_to_response(response, citations)
+
+            return RAGImdbState({
+                **state,
+                "response": response,
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "final_response_length": len(response),
+                    "citations_included": len(citations) > 0
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error in respond node: {str(e)}")
+            return {
+                **state,
+                "response": state.get('response', f"Error formatting response: {str(e)}"),
+                "metadata": {
+                    **state.get("metadata", {}),
+                    "respond_error": str(e)
+                }
+            }
+
+    def _create_generation_prompt(self, query: str, context: str) -> str:
+        """
+        Create prompt for LLM generation.
+
+        Args:
+            query: User query
+            context: Retrieved context
+
+        Returns:
+            Formatted prompt string
+        """
+        prompt = f"""Based on the following context from movie reviews, please answer the user's question.
+
+Context:
+{context}
+
+User Question: {query}
+
+Please provide a helpful and informative answer based on the context above. If the context doesn't contain enough information to fully answer the question, please say so and provide what information is available."""
+
+        return prompt
+
+    def _add_citations_to_response(self, response: str, citations: List[Dict[str, Any]]) -> str:
+        """
+        Add citation information to the response.
+
+        Args:
+            response: Generated response
+            citations: List of citation dictionaries
+
+        Returns:
+            Response with citations appended
+        """
+        if not citations:
+            return response
+
+        # Add citations section
+        citation_text = "\n\n**Sources:**\n"
+
+        for citation in citations:
+            citation_id = citation.get('id', 'Unknown')
+            score = citation.get('score', 0.0)
+
+            # Add movie information if available
+            movie_title = citation.get('movie_title', 'Unknown Movie')
+            review_title = citation.get('review_title', '')
+            year = citation.get('year', '')
+            genre = citation.get('genre', '')
+
+            citation_line = f"{citation_id}. **{movie_title}**"
+
+            if year:
+                citation_line += f" ({year})"
+            if genre:
+                citation_line += f" - {genre}"
+            if review_title:
+                citation_line += f"\n   Review: \"{review_title}\""
+
+            citation_line += f" (Relevance: {score:.2f})"
+            citation_text += citation_line + "\n"
+
+        return response + citation_text
+
+    def process_query(self, query: str) -> RAGImdbState:
+        """
+        Process a user query through the complete RAG workflow.
+
+        Args:
+            query: User query string
+
+        Returns:
+            Dictionary containing response and metadata
+        """
+        logger.info(f"Processing query through RAG workflow: '{query[:50]}...'")
+
+        # Initialize workflow state
+        initial_state = RAGImdbState({
+            "query": query,
+            "context": "",
+            "citations": [],
+            "response": "",
+            "metadata": {
+                "query_length": len(query),
+                "workflow_started": True
+            }
+        })
+
+        try:
+            # Run the workflow
+            final_state = self.workflow.invoke(initial_state)
+
+            logger.info("RAG workflow completed successfully")
+
+            return RAGImdbState({
+                "response": final_state["response"],
+                "citations": final_state.get("citations", []),
+                "context": final_state.get("context", ""),
+                "metadata": final_state.get("metadata", {})
+            })
+
+        except Exception as e:
+            logger.error(f"Error in RAG workflow: {str(e)}")
+            return RAGImdbState({
+                "response": f"I apologize, but I encountered an error processing your query: {str(e)}",
+                "citations": [],
+                "context": "",
+                "metadata": {
+                    "error": str(e),
+                    "workflow_failed": True
+                }
+            })
+
+    def get_workflow_info(self) -> Dict[str, Any]:
+        """
+        Get information about the workflow configuration.
+
+        Returns:
+            Dictionary with workflow information
+        """
+        return {
+            "workflow_type": "RAG with LangGraph",
+            "nodes": ["retrieve", "generate", "respond"],
+            "rag_service": {
+                "max_context_length": self.rag_service.max_context_length,
+                "source_format": self.rag_service.source_format,
+                "include_sources": self.rag_service.include_sources
+            },
+            "llm": {
+                "type": "GeminiChat",
+                "model_name": self.llm.model_name,
+                "api_url": self.llm.api_url
+            }
+        }
