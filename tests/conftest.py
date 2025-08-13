@@ -85,8 +85,8 @@ def qdrant_available(app_config):
 
     # Test basic connectivity
     try:
-        from chat_my_doc_app.qdrant_service import create_qdrant_service
-        service = create_qdrant_service(app_config)
+        from chat_my_doc_app.db import QdrantService
+        service = QdrantService(app_config)
         if not service.test_connection():
             pytest.skip("Qdrant server not available")
         return True

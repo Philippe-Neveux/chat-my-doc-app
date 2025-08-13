@@ -10,13 +10,10 @@ Tests are marked with @pytest.mark.integration and can be skipped
 by running: pytest -m "not integration"
 """
 
-import sys
 import pytest
-from pathlib import Path
-from typing import Dict, Any
 
 from chat_my_doc_app.config import get_config
-from chat_my_doc_app.qdrant_service import QdrantService, create_qdrant_service
+from chat_my_doc_app.db import QdrantService
 
 
 @pytest.mark.integration
@@ -52,7 +49,7 @@ class TestQdrantIntegration:
 
     def test_factory_function(self):
         """Test the factory function creates a service correctly."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         assert isinstance(service, QdrantService)
         assert service.host == self.qdrant_config['host']
@@ -60,7 +57,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_qdrant_connection(self):
         """Test connection to Qdrant server (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         # Test connection
         connection_success = service.test_connection()
@@ -69,14 +66,14 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_collection_exists(self):
         """Test that the configured collection exists (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         collection_exists = service.check_collection_exists()
         assert collection_exists, f"Collection '{service.collection_name}' does not exist"
 
     def test_embedding_generation(self):
         """Test embedding generation functionality."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         test_text = "This is a test document for embedding generation."
         embedding = service.generate_embedding(test_text)
@@ -91,7 +88,7 @@ class TestQdrantIntegration:
 
     def test_embedding_different_texts(self):
         """Test that different texts produce different embeddings."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         text1 = "This is about movies and entertainment."
         text2 = "This is about science and technology."
@@ -104,7 +101,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_similarity_search_basic(self):
         """Test basic similarity search functionality (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         # Test search with basic parameters
         query = "movie review"
@@ -125,7 +122,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_similarity_search_with_threshold(self):
         """Test similarity search with score threshold (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         query = "excellent movie"
         threshold = 0.1
@@ -142,7 +139,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_similarity_search_limit_enforcement(self):
         """Test that search respects configured limits (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         # Test with limit higher than max_limit in config
         max_limit = self.qdrant_config.get('search', {}).get('max_limit', 20)
@@ -157,7 +154,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_search_with_metadata_filter(self):
         """Test search with metadata filtering (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         # This test assumes your data has some metadata fields
         # Adjust the filter based on your actual data structure
@@ -185,7 +182,7 @@ class TestQdrantIntegration:
 
     def test_empty_query_handling(self):
         """Test handling of edge cases."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         # Test empty query
         empty_embedding = service.generate_embedding("")
@@ -195,7 +192,7 @@ class TestQdrantIntegration:
     @pytest.mark.slow
     def test_search_by_metadata_only(self):
         """Test metadata-only search functionality (slow test)."""
-        service = create_qdrant_service(self.config)
+        service = QdrantService(self.config)
 
         try:
             # Test metadata search - adjust filter based on your data
@@ -220,7 +217,7 @@ class TestQdrantIntegration:
 def qdrant_service():
     """Session-scoped fixture for QdrantService."""
     config = get_config()
-    return create_qdrant_service(config)
+    return QdrantService(config)
 
 
 @pytest.mark.integration
@@ -253,8 +250,3 @@ def test_end_to_end_search_workflow(qdrant_service):
         payload = result_data['payload']
         assert isinstance(payload, dict)
         # You might want to add specific checks based on your data structure
-
-
-if __name__ == "__main__":
-    # Allow running this file directly for quick testing
-    pytest.main([__file__, "-v", "-m", "integration"])

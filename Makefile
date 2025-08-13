@@ -1,8 +1,8 @@
 app:
-	uv run python src/chat_my_doc_app/main.py
+	uv run python src/chat_my_doc_app/app.py
 
 app-debug:
-	uv run python src/chat_my_doc_app/main.py --debug
+	uv run python src/chat_my_doc_app/app.py --debug
 
 data:
 	uv run python src/chat_my_doc_app/data.py process-imdb-data

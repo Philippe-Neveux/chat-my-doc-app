@@ -251,16 +251,3 @@ class QdrantService:
         except Exception as e:
             logger.error(f"Error searching by metadata: {str(e)}")
             raise
-
-
-def create_qdrant_service(config_dict: Optional[Dict[str, Any]] = None) -> QdrantService:
-    """
-    Factory function to create a QdrantService instance.
-
-    Args:
-        config_dict: Optional configuration dictionary. If None, loads from default config.
-
-    Returns:
-        Configured QdrantService instance
-    """
-    return QdrantService(config_dict=config_dict)
