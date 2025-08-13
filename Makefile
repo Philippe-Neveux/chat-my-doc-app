@@ -7,8 +7,11 @@ app-debug:
 data:
 	uv run python src/chat_my_doc_app/data.py process-imdb-data
 
-test:
-	uv run pytest -v --cov=src --cov-report=html --cov-report=term
+unit-test:
+	uv run pytest tests/unit -v --cov=src --cov-report=html --cov-report=term
+
+integration-test:
+	uv run pytest tests/integration -v --cov=src --cov-report=html --integration --slow
 
 ruff:
 	uv run ruff check src --fix --select I

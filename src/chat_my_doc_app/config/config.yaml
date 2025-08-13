@@ -1,0 +1,38 @@
+# Chat My Doc App Configuration
+# Non-sensitive configuration settings
+
+# Qdrant Database Settings
+qdrant:
+  host: 34.87.227.185
+  port: 6333
+  collection_name: "imdb_reviews"
+  timeout: 30
+
+  # Search defaults
+  search:
+    default_limit: 5
+    default_score_threshold: 0.0
+    max_limit: 20
+
+# Embedding Model Configuration
+embedding:
+  model_name: "all-MiniLM-L6-v2"
+
+# RAG Configuration
+rag:
+  # Context window settings
+  max_context_length: 4000
+  context_overlap: 200
+
+  # Retrieval settings
+  retrieval:
+    chunk_size: 512
+    chunk_overlap: 50
+    min_chunk_size: 100
+
+  # Response generation
+  generation:
+    temperature: 0.7
+    max_tokens: 1000
+    include_sources: true
+    source_format: "markdown"  # or "plain"

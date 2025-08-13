@@ -15,6 +15,7 @@ dependencies = [
     "loguru>=0.7.3",
     "polars>=1.32.2",
     "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
     "qdrant-client>=1.15.1",
     "sentence-transformers>=5.1.0",
     "typer>=0.16.0",
@@ -45,9 +46,14 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src/caht_my_doc_app",
+    "--cov=src/chat_my_doc_app",
     "--cov-report=term-missing",
     "--cov-report=html",
+]
+markers = [
+    "integration: marks tests as integration tests (may be slow)",
+    "slow: marks tests as slow (may take several seconds)",
+    "unit: marks tests as unit tests (fast)",
 ]
 filterwarnings = [
     # Ignore deprecated websockets warnings from dependencies

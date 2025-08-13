@@ -4,7 +4,7 @@ import os
 from typer.testing import CliRunner
 import typer
 
-from chat_my_doc_app.main import app, validate_port, validate_host
+from chat_my_doc_app.app import app, validate_port, validate_host
 
 
 class TestValidationFunctions:
@@ -71,7 +71,7 @@ class TestTyperCLI:
         """Set up test fixtures."""
         self.runner = CliRunner()
 
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_default_parameters(self, mock_create_interface):
         """Test CLI with default parameters."""
         mock_interface = Mock()
@@ -92,7 +92,7 @@ class TestTyperCLI:
             inbrowser=False
         )
 
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_debug_mode(self, mock_create_interface):
         """Test CLI with debug mode enabled."""
         mock_interface = Mock()
@@ -111,7 +111,7 @@ class TestTyperCLI:
             inbrowser=False
         )
 
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_custom_port(self, mock_create_interface):
         """Test CLI with custom port parameter."""
         mock_interface = Mock()
@@ -130,7 +130,7 @@ class TestTyperCLI:
             inbrowser=False
         )
 
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_custom_host(self, mock_create_interface):
         """Test CLI with custom host parameter."""
         mock_interface = Mock()
@@ -149,7 +149,7 @@ class TestTyperCLI:
             inbrowser=False
         )
 
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_all_options(self, mock_create_interface):
         """Test CLI with all options enabled."""
         mock_interface = Mock()
@@ -193,7 +193,7 @@ class TestTyperCLI:
         assert "Invalid host format" in result.output
 
     @patch.dict(os.environ, {'PORT': '7860'})
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_environment_variable_port(self, mock_create_interface):
         """Test that CLI uses PORT environment variable when no port argument provided."""
         mock_interface = Mock()
@@ -213,7 +213,7 @@ class TestTyperCLI:
         )
 
     @patch.dict(os.environ, {'PORT': '7860'})
-    @patch('chat_my_doc_app.main.create_chat_interface')
+    @patch('chat_my_doc_app.app.create_chat_interface')
     def test_cli_port_argument_overrides_env(self, mock_create_interface):
         """Test that CLI port argument overrides environment variable."""
         mock_interface = Mock()
@@ -234,7 +234,7 @@ class TestTyperCLI:
 
     def test_cli_short_options(self):
         """Test CLI short option flags."""
-        with patch('chat_my_doc_app.main.create_chat_interface') as mock_create_interface:
+        with patch('chat_my_doc_app.app.create_chat_interface') as mock_create_interface:
             mock_interface = Mock()
             mock_create_interface.return_value = mock_interface
             mock_interface.launch = Mock()
@@ -258,7 +258,7 @@ class TestGradioInterface:
 
     def test_create_chat_interface_returns_interface(self):
         """Test that create_chat_interface returns a working Gradio interface."""
-        from chat_my_doc_app.main import create_chat_interface
+        from chat_my_doc_app.app import create_chat_interface
 
         # This will actually create the real Gradio interface
         # but we won't launch it, just test that it's created
@@ -272,12 +272,12 @@ class TestGradioInterface:
         assert hasattr(interface, 'queue')
         assert hasattr(interface, 'close')
 
-    @patch('chat_my_doc_app.main.get_available_models')  # Patch it where it's imported in main.py
+    @patch('chat_my_doc_app.app.get_available_models')  # Patch it where it's imported in main.py
     def test_create_interface_with_mocked_models(self, mock_get_models):
         """Test interface creation with mocked available models."""
         mock_get_models.return_value = ["test-model-1", "test-model-2"]
 
-        from chat_my_doc_app.main import create_chat_interface
+        from chat_my_doc_app.app import create_chat_interface
         interface = create_chat_interface()
 
         assert interface is not None
@@ -340,7 +340,7 @@ class TestGradioImports:
     def test_main_module_imports(self):
         """Test that main module imports work correctly."""
         try:
-            from chat_my_doc_app.main import create_chat_interface, main
+            from chat_my_doc_app.app import create_chat_interface, main
             assert callable(create_chat_interface)
             assert callable(main)
         except ImportError as e:
