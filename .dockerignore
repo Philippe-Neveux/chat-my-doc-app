@@ -68,9 +68,6 @@ htmlcov/
 # Logs
 *.log
 
-# Local development
-.chainlit/
-
 # Docker
 Dockerfile
 .dockerignore
