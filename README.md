@@ -339,6 +339,72 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Google** - For the powerful Gemini AI models
 - **UV** - For fast and reliable Python package management
 
+## Testing
+
+The project includes comprehensive testing with 37+ passing tests across unit and integration test suites.
+
+### Test Structure
+
+```
+tests/
+├── unit/                           # Fast unit tests
+│   ├── app/test_main.py           # CLI & interface tests
+│   └── chat_my_doc_app/           # Model & chat tests
+└── integration/                   # Integration tests
+    ├── README.md                  # Integration test documentation
+    └── test_qdrant_integration.py # Qdrant database integration tests
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov
+
+# Run specific test categories
+uv run pytest tests/unit/                    # Unit tests only
+uv run pytest tests/integration/ --integration   # Integration tests
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test
+uv run pytest tests/unit/test_main.py::TestTyperCLI::test_cli_debug_mode -v
+```
+
+### Integration Tests
+
+Integration tests verify external service interactions (Qdrant vector database) and are marked with `@pytest.mark.integration`. They require:
+
+1. **Qdrant Server**: Running instance configured in `src/chat_my_doc_app/config/config.yaml`
+2. **Environment Variables**: Required API keys in `.env` file
+3. **Test Data**: Qdrant collection with test documents
+
+```bash
+# Run integration tests
+uv run pytest tests/integration/ --integration
+
+# Run without slow tests
+uv run pytest tests/integration/ --integration -m "not slow"
+
+# Run with test runner script
+uv run python scripts/run_integration_tests.py --type integration
+```
+
+### Test Coverage
+
+- ✅ **CLI Functionality**: All Typer CLI options and validation
+- ✅ **Gradio Interface**: Component creation and functionality
+- ✅ **LangChain Integration**: Custom model implementation
+- ✅ **Chat Management**: Session handling and conversation memory
+- ✅ **Input Validation**: Port ranges, host formats, parameter validation
+- ✅ **Error Handling**: Invalid inputs and edge cases
+- ✅ **Qdrant Integration**: Database operations, embeddings, search functionality
+- ✅ **End-to-End Workflows**: Complete RAG pipeline testing
+
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/your-username/chat-my-doc-app/issues)
