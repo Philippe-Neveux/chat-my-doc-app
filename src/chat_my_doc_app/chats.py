@@ -135,8 +135,12 @@ async def chat_with_rag_astream(
         str: Streaming response chunks
     """
     try:
-        # Initialize RAG workflow - now using the proper RAGImdb class!
-        rag_workflow = RAGImdb(model_name, system_prompt=system_prompt)
+        # Initialize RAG workflow with GeminiChat instance
+        chat_model = GeminiChat(
+            model_name=model_name,
+            system_prompt=system_prompt
+        )
+        rag_workflow = RAGImdb(chat_model)
 
         # Use the RAGImdb streaming method instead of manual implementation
         async for chunk in rag_workflow.process_query_stream(message):
@@ -189,7 +193,8 @@ def get_available_models() -> List[str]:
 def if_rag_connection_works() -> bool:
     """Test if RAG system is properly configured and accessible."""
     try:
-        rag_workflow = RAGImdb("gemini-2.0-flash-lite")
+        chat_model = GeminiChat(model_name="gemini-2.0-flash-lite")
+        rag_workflow = RAGImdb(chat_model)
         info = rag_workflow.get_workflow_info()
         logger.info(f"RAG system connected: {info['workflow_type']}")
         return True

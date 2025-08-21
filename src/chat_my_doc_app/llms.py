@@ -1,10 +1,11 @@
 """
-Custom LangChain Chat Model for deployed Gemini API.
+Custom LangChain Chat Models for deployed Gateway APIs.
 
-This module provides a custom LangChain BaseChatModel implementation
-that connects to your deployed Gemini API with streaming support.
+This module provides custom LangChain BaseChatModel implementations
+that connect to your deployed Gateway API with streaming support for different LLM providers.
 """
 import os
+from abc import ABC, abstractmethod
 from typing import Any, AsyncIterator, Iterator, List, Optional
 
 import aiohttp
@@ -21,16 +22,16 @@ from loguru import logger
 from pydantic import Field
 
 
-class GeminiChat(BaseChatModel):
-    """Custom LangChain Chat Model for your deployed Gemini API."""
+class GatewayChat(BaseChatModel, ABC):
+    """Abstract base class for Gateway API chat models."""
 
-    api_url: str = Field(..., description="Base URL for the deployed API")
-    model_name: str = Field(default="gemini-2.0-flash-lite", description="Model name to use")
+    api_url: str | None = Field(default=None, description="Base URL for the deployed API")
+    model_name: str | None = Field(default=None, description="Model name to use")
     system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt for the model")
 
     def __init__(self, **kwargs: Any):
         """
-        Initialize the GeminiChat model.
+        Initialize the GatewayChat model.
 
         Args:
             api_url: Base URL for the deployed API.
@@ -51,8 +52,22 @@ class GeminiChat(BaseChatModel):
         arbitrary_types_allowed = True
 
     @property
+    @abstractmethod
     def _llm_type(self) -> str:
-        return "gemini_chat"
+        """Return the LLM type identifier."""
+        pass
+
+    @property
+    @abstractmethod
+    def _endpoint_path(self) -> str:
+        """Return the API endpoint path for this LLM provider."""
+        pass
+
+    @property
+    @abstractmethod
+    def _stream_endpoint_path(self) -> str:
+        """Return the streaming API endpoint path for this LLM provider."""
+        pass
 
     @property
     def _identifying_params(self) -> dict:
@@ -87,9 +102,14 @@ class GeminiChat(BaseChatModel):
         model_name = kwargs.get("model_name", self.model_name)
 
         try:
+            # Prepare request payload
+            payload = {"prompt": prompt}
+            if model_name:  # Only add model_name if it's not empty
+                payload["model_name"] = model_name
+
             response = requests.post(
-                f"{self.api_url}/gemini",
-                json={"prompt": prompt, "model_name": model_name},
+                f"{self.api_url}{self._endpoint_path}",
+                json=payload,
                 headers={"Content-Type": "application/json"}
             )
 
@@ -135,9 +155,14 @@ class GeminiChat(BaseChatModel):
         model_name = kwargs.get("model_name", self.model_name)
 
         try:
+            # Prepare request payload
+            payload = {"prompt": prompt}
+            if model_name:  # Only add model_name if it's not empty
+                payload["model_name"] = model_name
+
             response = requests.post(
-                f"{self.api_url}/gemini-stream",
-                json={"prompt": prompt, "model_name": model_name},
+                f"{self.api_url}{self._stream_endpoint_path}",
+                json=payload,
                 headers={"Content-Type": "application/json"},
                 stream=True
             )
@@ -145,7 +170,6 @@ class GeminiChat(BaseChatModel):
             if response.status_code == 200:
                 for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
                     if chunk:
-                        # Create ChatGenerationChunk and yield it
                         chat_chunk = ChatGenerationChunk(
                             message=AIMessageChunk(content=chunk)
                         )
@@ -186,10 +210,15 @@ class GeminiChat(BaseChatModel):
         model_name = kwargs.get("model_name", self.model_name)
 
         try:
+            # Prepare request payload
+            payload = {"prompt": prompt}
+            if model_name:  # Only add model_name if it's not empty
+                payload["model_name"] = model_name
+
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.api_url}/gemini-stream",
-                    json={"prompt": prompt, "model_name": model_name},
+                    f"{self.api_url}{self._stream_endpoint_path}",
+                    json=payload,
                     headers={"Content-Type": "application/json"}
                 ) as response:
 
@@ -238,3 +267,49 @@ class GeminiChat(BaseChatModel):
         # For now, fall back to sync generate
         # In production, you'd want to implement this with async HTTP calls
         return self._generate(messages, stop, None, **kwargs)
+
+
+class GeminiChat(GatewayChat):
+    """Custom LangChain Chat Model for your deployed Gemini API."""
+
+    def __init__(self, model_name: str = "gemini-2.0-flash-lite", **kwargs: Any):
+        """
+        Initialize the GeminiChat model.
+
+        Args:
+            model_name: Name of the model to use.
+        """
+        # Check if api_url is provided in kwargs, otherwise get from environment
+        if 'model_name' in kwargs:
+            kwargs['model_name'] = model_name
+
+        # Call parent constructor with all fields
+        super().__init__(**kwargs)
+
+    @property
+    def _llm_type(self) -> str:
+        return "gemini_chat"
+
+    @property
+    def _endpoint_path(self) -> str:
+        return "/gemini"
+
+    @property
+    def _stream_endpoint_path(self) -> str:
+        return "/gemini-stream"
+
+
+class MistralChat(GatewayChat):
+    """Custom LangChain Chat Model for your deployed Mistral API."""
+
+    @property
+    def _llm_type(self) -> str:
+        return "mistral_chat"
+
+    @property
+    def _endpoint_path(self) -> str:
+        return "/mistral"
+
+    @property
+    def _stream_endpoint_path(self) -> str:
+        return "/mistral-stream"

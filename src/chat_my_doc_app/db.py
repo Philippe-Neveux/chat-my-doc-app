@@ -177,7 +177,16 @@ class QdrantService:
                         )
                     )
                 if conditions:
-                    search_filter = models.Filter(must=cast(List[Union[models.FieldCondition, models.IsEmptyCondition, models.IsNullCondition, models.HasIdCondition, models.HasVectorCondition, models.NestedCondition, models.Filter]], conditions))
+                    search_filter = models.Filter(must=cast(List[Union[
+                            models.FieldCondition,
+                            models.IsEmptyCondition,
+                            models.IsNullCondition,
+                            models.HasIdCondition,
+                            models.HasVectorCondition,
+                            models.NestedCondition,
+                            models.Filter]
+                        ], conditions)
+                    )
 
             # Perform search
             # Use configured default values if not specified
@@ -239,7 +248,16 @@ class QdrantService:
                     )
                 )
 
-            search_filter = models.Filter(must=cast(List[Union[models.FieldCondition, models.IsEmptyCondition, models.IsNullCondition, models.HasIdCondition, models.HasVectorCondition, models.NestedCondition, models.Filter]], conditions))
+            search_filter = models.Filter(must=cast(List[Union[
+                    models.FieldCondition,
+                    models.IsEmptyCondition,
+                    models.IsNullCondition,
+                    models.HasIdCondition,
+                    models.HasVectorCondition,
+                    models.NestedCondition,
+                    models.Filter
+                ]
+            ], conditions))
 
             results = self.client.scroll(
                 collection_name=self.collection_name,

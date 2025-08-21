@@ -15,7 +15,7 @@ from loguru import logger
 
 from chat_my_doc_app.config import get_config
 from chat_my_doc_app.db import QdrantService
-from chat_my_doc_app.llms import GeminiChat
+from chat_my_doc_app.llms import GatewayChat
 
 
 class DocumentSource:
@@ -426,7 +426,7 @@ class RAGImdb:
 
     def __init__(
         self,
-        model_name: str,
+        chat_model: GatewayChat,
         config_dict: Optional[Dict[str, Any]] = None,
         system_prompt: Optional[str] = None
     ):
@@ -434,7 +434,7 @@ class RAGImdb:
         Initialize RAG workflow.
 
         Args:
-            model_name: Name of the Gemini model to use (e.g., "gemini-2.0-flash-lite")
+            chat_model: Instance of GatewayChat (can be GeminiChat, MistralChat, etc.)
             config_dict: Configuration dictionary. If None, loads from default config.
             system_prompt: Custom system prompt. If None, uses default movie review assistant prompt.
         """
@@ -443,16 +443,18 @@ class RAGImdb:
 
         self.config = config_dict
         self.rag_config = config_dict.get('rag', {})
-        self.model_name = model_name
+
+        # Store the provided chat model
+        self.llm = chat_model
+
+        # Update system prompt if provided
+        if system_prompt:
+            self.llm.system_prompt = system_prompt
+        elif not self.llm.system_prompt or self.llm.system_prompt == "You are a helpful assistant.":
+            self.llm.system_prompt = self.get_default_system_prompt()
 
         # Initialize RAG service
         self.rag_service = RetrievalService(config_dict)
-
-        # Initialize LLM (GeminiChat will get API URL from environment)
-        self.llm = GeminiChat(
-            model_name=model_name,
-            system_prompt=system_prompt or self.get_default_system_prompt()
-        )
 
         # Build the workflow graph
         self.workflow = self._build_workflow()
@@ -839,8 +841,8 @@ Please provide a helpful and informative answer based on the context above. If t
                 "include_sources": self.rag_service.include_sources
             },
             "llm": {
-                "type": "GeminiChat",
+                "type": self.llm._llm_type,
                 "api_url": self.llm.api_url,
-                "model_name": self.model_name
+                "model_name": self.llm.model_name
             }
         }
