@@ -13,8 +13,11 @@ unit-test:
 integration-test:
 	uv run pytest tests/integration -v --cov=src --cov-report=html --slow
 
+test:
+	uv run pytest tests -v --cov=src --cov-report=html --cov-report=term --slow
+
 ruff:
-	uv run ruff check src --fix --select I
+	uv run ruff check . --fix --select I
 
 mypy:
 	uv run mypy src
@@ -24,6 +27,10 @@ pre-commit-install:
 
 pre-commit: pre-commit-install
 	uv run pre-commit run --all-files
+
+clean:
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov
+	rm -rf tests/unit/__pycache__ tests/integration/__pycache__
 
 GCP_REGION ?= australia-southeast1
 GCP_PROJECT_ID ?= gen-ai-466406

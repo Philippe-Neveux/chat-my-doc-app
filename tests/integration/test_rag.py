@@ -4,16 +4,12 @@ Integration tests for RAG service.
 These tests require a running Qdrant instance with test data.
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from chat_my_doc_app.config import get_config
-from chat_my_doc_app.rag import (
-    RetrievalService,
-    DocumentSource,
-    RAGImdb,
-    RAGImdbState
-)
+from chat_my_doc_app.rag import DocumentSource, RAGImdb, RAGImdbState, RetrievalService
 
 
 class TestRetrievalIntegration:

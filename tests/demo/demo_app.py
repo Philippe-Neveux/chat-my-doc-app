@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from chat_my_doc_app.app import create_chat_interface
-from chat_my_doc_app.chats import test_rag_connection, get_available_models
+from chat_my_doc_app.chats import get_available_models, test_rag_connection
 from chat_my_doc_app.config import get_config
 
 

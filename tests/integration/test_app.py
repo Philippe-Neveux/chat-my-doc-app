@@ -5,9 +5,10 @@ Tests focus on the integration points between the Gradio interface
 and the RAG workflow without requiring external dependencies.
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from typing import AsyncIterator
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from chat_my_doc_app.chats import chat_with_rag_astream, if_rag_connection_works
 

@@ -5,14 +5,11 @@ These tests focus on individual components of the RAG service without
 requiring external dependencies like Qdrant.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from chat_my_doc_app.rag import (
-    RetrievalService,
-    DocumentSource,
-    RAGImdb, RAGImdbState
-)
+import pytest
+
+from chat_my_doc_app.rag import DocumentSource, RAGImdb, RAGImdbState, RetrievalService
 
 
 @pytest.fixture

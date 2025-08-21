@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import patch, Mock
 import os
-from typer.testing import CliRunner
-import typer
+from unittest.mock import Mock, patch
 
-from chat_my_doc_app.app import app, validate_port, validate_host
+import pytest
+import typer
+from typer.testing import CliRunner
+
+from chat_my_doc_app.app import app, validate_host, validate_port
 
 
 class TestValidationFunctions:

@@ -566,7 +566,11 @@ Always be honest about what information is available in the context."""
             result = self.llm._generate(messages)
 
             # Extract generated text
-            generated_response = result.generations[0].message.content
+            content = result.generations[0].message.content
+            if isinstance(content, str):
+                generated_response = content
+            else:
+                generated_response = str(content)
 
             return {
                 **state,
@@ -725,17 +729,17 @@ Please provide a helpful and informative answer based on the context above. If t
             logger.info("RAG workflow completed successfully")
 
             return {
-                "query": initial_state["query"],
-                "response": final_state["response"],
+                "query": str(initial_state["query"]),
+                "response": str(final_state["response"]),
                 "citations": final_state.get("citations", []),
-                "context": final_state.get("context", ""),
+                "context": str(final_state.get("context", "")),
                 "metadata": final_state.get("metadata", {})
             }
 
         except Exception as e:
             logger.error(f"Error in RAG workflow: {str(e)}")
             return {
-                "query": initial_state["query"],
+                "query": str(initial_state["query"]),
                 "response": f"I apologize, but I encountered an error processing your query: {str(e)}",
                 "citations": [],
                 "context": "",

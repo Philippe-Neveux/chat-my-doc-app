@@ -6,7 +6,7 @@ deployed on Google Cloud Engine. It handles document retrieval, similarity searc
 and metadata filtering for RAG applications.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from loguru import logger
 from qdrant_client import QdrantClient
@@ -100,10 +100,21 @@ class QdrantService:
         """
         try:
             info = self.client.get_collection(self.collection_name)
+            # Get the default vector config (usually the first one or named vector)
+            vectors_config = info.config.params.vectors
+            if isinstance(vectors_config, dict) and vectors_config:
+                # Get first vector config
+                _, vector_config = next(iter(vectors_config.items()))
+                vector_size = vector_config.size
+                distance_metric = vector_config.distance.name
+            else:
+                vector_size = 0
+                distance_metric = "unknown"
+
             collection_info = {
-                "name": info.config.params.vector_size,
-                "vector_size": info.config.params.vector_size,
-                "distance_metric": info.config.params.distance.name,
+                "name": self.collection_name,
+                "vector_size": vector_size,
+                "distance_metric": distance_metric,
                 "points_count": info.points_count,
                 "status": info.status.name
             }
@@ -166,7 +177,7 @@ class QdrantService:
                         )
                     )
                 if conditions:
-                    search_filter = models.Filter(must=conditions)
+                    search_filter = models.Filter(must=cast(List[Union[models.FieldCondition, models.IsEmptyCondition, models.IsNullCondition, models.HasIdCondition, models.HasVectorCondition, models.NestedCondition, models.Filter]], conditions))
 
             # Perform search
             # Use configured default values if not specified
@@ -228,7 +239,7 @@ class QdrantService:
                     )
                 )
 
-            search_filter = models.Filter(must=conditions)
+            search_filter = models.Filter(must=cast(List[Union[models.FieldCondition, models.IsEmptyCondition, models.IsNullCondition, models.HasIdCondition, models.HasVectorCondition, models.NestedCondition, models.Filter]], conditions))
 
             results = self.client.scroll(
                 collection_name=self.collection_name,

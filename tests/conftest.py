@@ -7,8 +7,9 @@ This file contains:
 - Environment validation for integration tests
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from chat_my_doc_app.config import get_config
 

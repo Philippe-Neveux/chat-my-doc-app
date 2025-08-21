@@ -8,8 +8,8 @@ Run this to see how the three-node workflow (retrieve → generate → respond) 
 
 import sys
 
-from chat_my_doc_app.rag import RAGImdb
 from chat_my_doc_app.config import get_config
+from chat_my_doc_app.rag import RAGImdb
 
 
 def demo_rag_workflow():

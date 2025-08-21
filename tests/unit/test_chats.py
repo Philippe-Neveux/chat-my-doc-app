@@ -1,13 +1,14 @@
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import patch, Mock, AsyncMock
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from chat_my_doc_app.chats import (
-    get_available_models,
     chat_with_gemini_astream,
     clear_conversation_history,
-    get_conversation_history
+    get_available_models,
+    get_conversation_history,
 )
 
 
@@ -135,7 +136,7 @@ class TestChatFunctions:
     @patch('chat_my_doc_app.chats.graph')
     def test_clear_conversation_history_with_messages(self, mock_graph):
         """Test clearing conversation history with existing messages."""
-        from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
+        from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
         # Create mock messages with IDs
         msg1 = HumanMessage(content="Hello", id="msg1")
