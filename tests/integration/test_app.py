@@ -39,11 +39,16 @@ class TestRAGChatIntegration:
         ):
             response_chunks.append(chunk)
 
-        # Verify RAGImdb was called correctly
-        mock_rag_class.assert_called_once_with(
-            "gemini-2.0-flash-lite",
-            system_prompt="You are a helpful movie review assistant."
-        )
+        # Verify RAGImdb was called correctly with a GeminiChat instance
+        mock_rag_class.assert_called_once()
+        call_args = mock_rag_class.call_args
+        chat_model = call_args[0][0]
+
+        # Verify it's a GeminiChat instance with correct parameters
+        from chat_my_doc_app.llms import GeminiChat
+        assert isinstance(chat_model, GeminiChat)
+        assert chat_model.model_name == "gemini-2.0-flash-lite"
+        assert chat_model.system_prompt == "You are a helpful movie review assistant."
 
         # Verify streaming response
         assert len(response_chunks) == 4
@@ -125,10 +130,15 @@ class TestRAGChatIntegration:
             response_chunks.append(chunk)
 
         # Verify RAGImdb was called with custom parameters
-        mock_rag_class.assert_called_once_with(
-            "gemini-1.5-pro",
-            system_prompt="You are a movie expert."
-        )
+        mock_rag_class.assert_called_once()
+        call_args = mock_rag_class.call_args
+        chat_model = call_args[0][0]
+
+        # Verify it's a GeminiChat instance with correct parameters
+        from chat_my_doc_app.llms import GeminiChat
+        assert isinstance(chat_model, GeminiChat)
+        assert chat_model.model_name == "gemini-1.5-pro"
+        assert chat_model.system_prompt == "You are a movie expert."
 
         # Verify response
         assert len(response_chunks) == 2

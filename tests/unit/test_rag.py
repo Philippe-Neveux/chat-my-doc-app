@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from chat_my_doc_app.llms import GeminiChat
 from chat_my_doc_app.rag import DocumentSource, RAGImdb, RAGImdbState, RetrievalService
 
 
@@ -367,16 +368,16 @@ class TestRAGImdb:
     """Test the TestRAGImdb class."""
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_rag_initialization(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_rag_initialization(self, mock_rag_service, sample_config_rag):
         """Test RAGImdb initialization."""
         mock_rag_instance = Mock()
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         assert rag.config == sample_config_rag
         assert rag.rag_service == mock_rag_instance
@@ -386,15 +387,8 @@ class TestRAGImdb:
         # Verify RetrievalService was initialized correctly
         mock_rag_service.assert_called_once_with(sample_config_rag)
 
-        # Verify GeminiChat was initialized with correct parameters
-        mock_gemini.assert_called_once()
-        call_kwargs = mock_gemini.call_args[1]
-        assert call_kwargs['model_name'] == 'gemini-2.0-flash-lite'
-        assert 'system_prompt' in call_kwargs
-
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_retrieve_node(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_retrieve_node(self, mock_rag_service, sample_config_rag):
         """Test the retrieve node functionality."""
         # Setup mocks
         mock_rag_instance = Mock()
@@ -404,10 +398,11 @@ class TestRAGImdb:
         )
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         # Test retrieve node
         initial_state = RAGImdbState(
@@ -437,8 +432,7 @@ class TestRAGImdb:
         assert result['metadata']['context_length'] == len("Test context with movie reviews")
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_generate_node(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_generate_node(self, mock_rag_service, sample_config_rag):
         """Test the generate node functionality."""
         # Setup mocks
         mock_rag_instance = Mock()
@@ -450,11 +444,12 @@ class TestRAGImdb:
         mock_result = Mock()
         mock_result.generations = [mock_generation]
 
-        mock_llm_instance = Mock()
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
         mock_llm_instance._generate.return_value = mock_result
-        mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         # Test generate node
         state_with_context = RAGImdbState(
@@ -478,16 +473,16 @@ class TestRAGImdb:
         assert result['metadata']['response_length'] == len("This is a generated response about movies.")
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_respond_node(self, mock_gemini, mock_rag_service, sample_config_rag, sample_state):
+    def test_respond_node(self, mock_rag_service, sample_config_rag, sample_state):
         """Test the respond node functionality."""
         mock_rag_instance = Mock()
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         result = rag.respond_node(sample_state)
 
@@ -499,8 +494,7 @@ class TestRAGImdb:
         assert result['metadata']['citations_included'] is True
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_respond_node_no_citations(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_respond_node_no_citations(self, mock_rag_service, sample_config_rag):
         """Test respond node with citations disabled."""
         # Modify config to disable citations
         config_no_citations = sample_config_rag.copy()
@@ -509,10 +503,11 @@ class TestRAGImdb:
         mock_rag_instance = Mock()
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", config_no_citations)
+        rag = RAGImdb(mock_llm_instance, config_no_citations)
 
         state = RAGImdbState(
             query="test",
@@ -530,10 +525,12 @@ class TestRAGImdb:
 
     def test_create_generation_prompt(self, sample_config_rag):
         """Test generation prompt creation."""
-        with patch('chat_my_doc_app.rag.RetrievalService'), \
-             patch('chat_my_doc_app.rag.GeminiChat'):
+        with patch('chat_my_doc_app.rag.RetrievalService'):
+            # Create a mock GeminiChat instance
+            mock_llm_instance = Mock(spec=GeminiChat)
+            mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+            rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
             query = "What are the best movies?"
             context = "Review 1: Great movie with excellent acting."
@@ -547,10 +544,12 @@ class TestRAGImdb:
 
     def test_add_citations_to_response(self, sample_config_rag):
         """Test citation formatting."""
-        with patch('chat_my_doc_app.rag.RetrievalService'), \
-             patch('chat_my_doc_app.rag.GeminiChat'):
+        with patch('chat_my_doc_app.rag.RetrievalService'):
+            # Create a mock GeminiChat instance
+            mock_llm_instance = Mock(spec=GeminiChat)
+            mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+            rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
             response = "This is a great movie."
             citations = [
@@ -576,10 +575,12 @@ class TestRAGImdb:
 
     def test_add_citations_empty_list(self, sample_config_rag):
         """Test citation formatting with empty citations."""
-        with patch('chat_my_doc_app.rag.RetrievalService'), \
-             patch('chat_my_doc_app.rag.GeminiChat'):
+        with patch('chat_my_doc_app.rag.RetrievalService'):
+            # Create a mock GeminiChat instance
+            mock_llm_instance = Mock(spec=GeminiChat)
+            mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+            rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
             response = "This is a response."
             citations = []
@@ -591,8 +592,7 @@ class TestRAGImdb:
             assert "Sources:" not in result
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_get_rag_info(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_get_rag_info(self, mock_rag_service, sample_config_rag):
         """Test rag information retrieval."""
         # Setup mocks with attributes
         mock_rag_instance = Mock()
@@ -601,12 +601,14 @@ class TestRAGImdb:
         mock_rag_instance.include_sources = True
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
+        # Create a mock GeminiChat instance
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
         mock_llm_instance.model_name = 'gemini-2.0-flash-lite'
         mock_llm_instance.api_url = 'http://localhost:8000'
-        mock_gemini.return_value = mock_llm_instance
+        mock_llm_instance._llm_type = 'GeminiChat'
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         info = rag.get_workflow_info()
 
@@ -619,10 +621,12 @@ class TestRAGImdb:
 
     def test_factory_function(self, sample_config_rag):
         """Test the create_rag_workflow factory function."""
-        with patch('chat_my_doc_app.rag.RetrievalService'), \
-             patch('chat_my_doc_app.rag.GeminiChat'):
+        with patch('chat_my_doc_app.rag.RetrievalService'):
+            # Create a mock GeminiChat instance
+            mock_llm_instance = Mock(spec=GeminiChat)
+            mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+            rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
             assert isinstance(rag, RAGImdb)
             assert rag.config == sample_config_rag

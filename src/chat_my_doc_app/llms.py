@@ -279,9 +279,8 @@ class GeminiChat(GatewayChat):
         Args:
             model_name: Name of the model to use.
         """
-        # Check if api_url is provided in kwargs, otherwise get from environment
-        if 'model_name' in kwargs:
-            kwargs['model_name'] = model_name
+        # Set model_name in kwargs
+        kwargs['model_name'] = model_name
 
         # Call parent constructor with all fields
         super().__init__(**kwargs)

@@ -5,7 +5,7 @@ import pytest_asyncio
 from langchain_core.messages import AIMessage, HumanMessage
 
 from chat_my_doc_app.chats import (
-    chat_with_gemini_astream,
+    chat_with_llm_astream,
     clear_conversation_history,
     get_available_models,
     get_conversation_history,
@@ -26,10 +26,10 @@ class TestChatFunctions:
 
     @patch.dict('os.environ', {'CLOUD_RUN_API_URL': ''})  # Empty API URL
     @pytest.mark.asyncio
-    async def test_chat_with_gemini_astream_missing_api_url(self):
+    async def test_chat_with_llm_astream_missing_api_url(self):
         """Test async chat function when API URL is missing."""
         result = []
-        async for chunk in chat_with_gemini_astream(
+        async for chunk in chat_with_llm_astream(
             message="Hello",
             model_name="gemini-2.0-flash-lite",
             session_id="test_session_missing_url"
@@ -42,7 +42,7 @@ class TestChatFunctions:
     @patch.dict('os.environ', {'CLOUD_RUN_API_URL': 'https://test-api.example.com'})
     @patch('chat_my_doc_app.chats.graph')
     @pytest.mark.asyncio
-    async def test_chat_with_gemini_astream_success(self, mock_graph):
+    async def test_chat_with_llm_astream_success(self, mock_graph):
         """Test successful async chat with Gemini stream using LangGraph"""
         # Mock the graph.astream method to return async generator
         async def mock_astream(*args, **kwargs):
@@ -56,7 +56,7 @@ class TestChatFunctions:
         import uuid
         session_id = f"unique_session_{uuid.uuid4().hex}"
         result = []
-        async for chunk in chat_with_gemini_astream(
+        async for chunk in chat_with_llm_astream(
             message="Test message",
             model_name="gemini-2.0-flash-lite",
             session_id=session_id,
@@ -70,7 +70,7 @@ class TestChatFunctions:
     @patch.dict('os.environ', {'CLOUD_RUN_API_URL': 'https://test-api.example.com'})
     @patch('chat_my_doc_app.chats.graph')
     @pytest.mark.asyncio
-    async def test_chat_with_gemini_astream_exception(self, mock_graph):
+    async def test_chat_with_llm_astream_exception(self, mock_graph):
         """Test async chat function when an exception occurs."""
         # Mock graph.astream to raise an exception
         async def mock_astream_error(*args, **kwargs):
@@ -80,7 +80,7 @@ class TestChatFunctions:
         mock_graph.astream = mock_astream_error
 
         result = []
-        async for chunk in chat_with_gemini_astream(
+        async for chunk in chat_with_llm_astream(
             message="Hello",
             model_name="gemini-2.0-flash-lite",
             session_id="test_session_exception",
@@ -103,7 +103,7 @@ class TestChatFunctions:
         mock_graph.astream = mock_astream
 
         result = []
-        async for chunk in chat_with_gemini_astream(
+        async for chunk in chat_with_llm_astream(
             message="Hello",
             model_name="gemini-2.0-flash-lite",
             session_id="test_custom_prompt",

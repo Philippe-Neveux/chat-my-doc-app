@@ -18,7 +18,7 @@ from loguru import logger
 from typing_extensions import Annotated
 
 from chat_my_doc_app.chats import (
-    chat_with_gemini_astream,
+    chat_with_llm_astream,
     chat_with_rag_astream,
     clear_conversation_history,
     get_available_models,
@@ -59,7 +59,7 @@ def create_chat_interface():
                 ]
                 yield "", new_history
         else:
-            async for chunk in chat_with_gemini_astream(
+            async for chunk in chat_with_llm_astream(
                 message, model_name, session_id, system_prompt
             ):
                 partial_response += chunk

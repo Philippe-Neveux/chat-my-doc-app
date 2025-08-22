@@ -1,18 +1,24 @@
 # Chat My Doc App
 
-A modern Gradio-based chat application that leverages Google's Gemini AI models through a custom LangChain implementation. Chat with powerful AI models using a clean, intuitive web interface with conversation memory and streaming responses.
+A modern Gradio-based chat application that leverages multiple AI models (Gemini and Mistral) through a unified gateway architecture. Chat with powerful AI models using a clean, intuitive web interface with conversation memory, streaming responses, and RAG (Retrieval Augmented Generation) capabilities.
+In this application you can chat with the LLM to get review insights on fims which have been reviewed in IMDB web site. So you can get some recommandations or simply know what film are better than other ones regarding to their reviews.
 
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
 ![Gradio](https://img.shields.io/badge/gradio-5.42+-green.svg)
 ![LangChain](https://img.shields.io/badge/langchain-latest-orange.svg)
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
 
+
+![Gradio_UI](./docs/Gradio_UI.png)
+
 ## Features
 
 - **Modern Chat Interface**: Clean Gradio-based web UI with real-time streaming responses
-- **Multiple AI Models**: Support for Gemini 2.0 Flash, Gemini 1.5 Pro, and more
+- **Multi-Model Support**: Unified access to Gemini (2.0 Flash, 1.5 Pro) and Mistral (7B-Instruct) models
+- **RAG Integration**: Retrieval Augmented Generation with IMDB movie reviews database
+- **Gateway Architecture**: Abstract base class supporting multiple LLM providers through unified API
 - **Conversation Memory**: Maintains context across conversations with session management
-- **Custom LangChain Integration**: Direct connection to your deployed Gemini API
+- **Custom LangChain Integration**: Extensible chat models with streaming and async support
 - **Advanced CLI**: Full-featured command-line interface with Typer
 - **Input Validation**: Robust parameter validation and error handling
 - **Comprehensive Testing**: 37+ passing tests with full coverage
@@ -25,7 +31,8 @@ A modern Gradio-based chat application that leverages Google's Gemini AI models 
 
 - Python 3.12+
 - UV package manager (recommended) or pip
-- Google API access for Gemini models
+- Gateway API deployed (supports both Gemini and Mistral endpoints)
+- Optional: Qdrant vector database for RAG functionality
 
 ### Installation
 
@@ -46,11 +53,15 @@ pip install -e .
 Create a `.env` file in the project root:
 
 ```env
-# Required: Your deployed API URL
-CLOUD_RUN_API_URL=https://your-api-endpoint.run.app
+# Required: Your deployed gateway API URL
+CLOUD_RUN_API_URL=https://your-gateway-api.run.app
 
 # Optional: Custom port (defaults to 8000)
 PORT=8000
+
+# Optional: Qdrant configuration for RAG (if using RAG features)
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-qdrant-api-key
 ```
 
 ### Launch the Application
@@ -108,9 +119,14 @@ uv run python src/chat_my_doc_app/main.py --host 0.0.0.0 --port 8080
 
 1. **Start the application** using one of the methods above
 2. **Open your browser** to `http://localhost:8000` (or your custom port)
-3. **Select an AI model** from the dropdown (Gemini 2.0 Flash Lite, etc.)
-4. **Start chatting** - your conversation history is maintained automatically
-5. **Use the Clear button** to reset the conversation
+3. **Select an AI model** from the dropdown:
+   - **Gemini Models**: `gemini-2.0-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-pro`
+   - **Mistral Models**: `mistral-7b-instruct`
+4. **Choose chat mode**:
+   - **Regular Chat**: Direct conversation with the selected model
+   - **RAG Mode**: Enhanced responses using IMDB movie reviews database
+5. **Start chatting** - your conversation history is maintained automatically
+6. **Use the Clear button** to reset the conversation
 
 ## Architecture
 
@@ -119,11 +135,13 @@ uv run python src/chat_my_doc_app/main.py --host 0.0.0.0 --port 8080
 ```
 chat-my-doc-app/
 ├── src/
-│   ├── app/
-│   │   └── main.py              # Gradio interface & Typer CLI
 │   └── chat_my_doc_app/
+│       ├── app.py               # Gradio interface & Typer CLI
 │       ├── chats.py             # Chat functionality & session management
-│       └── llms.py              # Custom LangChain model implementation
+│       ├── llms.py              # Gateway chat models (GeminiChat, MistralChat)
+│       ├── rag.py               # RAG implementation with LangGraph
+│       ├── db.py                # Qdrant vector database integration
+│       └── config.py            # Configuration management
 ├── tests/                       # Comprehensive test suite (37+ tests)
 │   ├── app/test_main.py         # CLI & interface tests
 │   └── chat_my_doc_app/         # Model & chat functionality tests
@@ -141,19 +159,25 @@ chat-my-doc-app/
 - Session-based conversation memory
 - Real-time response streaming
 
-#### 2. **Custom LangChain Model** (`src/chat_my_doc_app/llms.py`)
-- `GeminiChat` class extending `BaseChatModel`
-- Direct API integration with your deployed endpoint
-- Streaming and async support
-- Full LangChain compatibility
+#### 2. **Gateway Chat Models** (`src/chat_my_doc_app/llms.py`)
+- `GatewayChat` abstract base class extending `BaseChatModel`
+- `GeminiChat` and `MistralChat` implementations
+- Unified API interface for multiple LLM providers
+- Streaming and async support with full LangChain compatibility
 
 #### 3. **Chat Management** (`src/chat_my_doc_app/chats.py`)
-- Conversation history management
+- Conversation history management with LangGraph
 - Multi-session support
-- Streaming response handling
-- Error handling and logging
+- Model-agnostic chat routing (Gemini/Mistral)
+- Streaming response handling and error handling
 
-#### 4. **CLI Application** (`src/chat_my_doc_app/main.py`)
+#### 4. **RAG System** (`src/chat_my_doc_app/rag.py`)
+- LangGraph workflow implementation
+- IMDB movie reviews retrieval system
+- Model-agnostic design (works with any GatewayChat implementation)
+- Document formatting and citation generation
+
+#### 5. **CLI Application** (`src/chat_my_doc_app/app.py`)
 - Built with Typer for professional CLI experience
 - Input validation and helpful error messages
 - Development and production modes
@@ -165,15 +189,33 @@ chat-my-doc-app/
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `CLOUD_RUN_API_URL` | Your deployed API endpoint | None | ✅ Yes |
+| `CLOUD_RUN_API_URL` | Your deployed gateway API endpoint | None | ✅ Yes |
 | `PORT` | Server port | 8000 | ❌ No |
+| `QDRANT_URL` | Qdrant vector database URL | `http://localhost:6333` | ❌ No (for RAG) |
+| `QDRANT_API_KEY` | Qdrant API key | None | ❌ No (for RAG) |
 
 ### Model Configuration
 
 Available models (configured in `chats.py`):
+
+**Gemini Models** (via `/gemini` and `/gemini-stream` endpoints):
 - `gemini-2.0-flash-lite` (default)
 - `gemini-2.0-flash`
 - `gemini-1.5-pro`
+
+**Mistral Models** (via `/mistral` and `/mistral-stream` endpoints):
+- `mistral-7b-instruct`
+
+### Gateway API Architecture
+
+Your deployed gateway should expose these endpoints:
+```
+POST /gemini           # Gemini chat completion
+POST /gemini-stream    # Gemini streaming chat
+POST /mistral          # Mistral chat completion
+POST /mistral-stream   # Mistral streaming chat
+POST  /health          # Health check
+```
 
 ## Testing
 
@@ -207,6 +249,32 @@ uv run pytest tests/chat_my_doc_app/test_main.py::TestTyperCLI::test_cli_debug_m
 - ✅ **Error Handling**: Invalid inputs and edge cases
 
 ## Deployment
+
+### Gateway API Requirements
+
+Before deploying the chat application, ensure your gateway API is running and accessible. The gateway should:
+
+1. **Support Multiple Endpoints**:
+   ```bash
+   # Test your gateway endpoints
+   curl -X POST https://your-gateway.run.app/gemini \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello", "model_name": "gemini-2.0-flash-lite"}'
+
+   curl -X POST https://your-gateway.run.app/mistral \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello"}'
+   ```
+
+2. **Handle Streaming Responses**:
+   ```bash
+   # Test streaming endpoints
+   curl -X POST https://your-gateway.run.app/gemini-stream \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Tell me a story", "model_name": "gemini-2.0-flash-lite"}'
+   ```
+
+3. **Backend Services**: Ensure your Mistral service (e.g., on Compute Engine) is running and accessible from the gateway.
 
 ### Docker Deployment
 
@@ -278,42 +346,71 @@ uv run python src/chat_my_doc_app/main.py --debug --share
 ### Adding New Features
 
 1. **Models**: Add new model names to `get_available_models()` in `chats.py`
-2. **CLI Options**: Extend the Typer command in `main.py`
-3. **UI Components**: Modify the Gradio interface in `create_chat_interface()`
-4. **Tests**: Add corresponding tests in the `tests/` directory
+2. **New LLM Providers**: Create new classes inheriting from `GatewayChat` in `llms.py`
+3. **CLI Options**: Extend the Typer command in `app.py`
+4. **UI Components**: Modify the Gradio interface in `create_chat_interface()`
+5. **RAG Sources**: Extend the RAG system for new document types
+6. **Tests**: Add corresponding tests in the `tests/` directory
 
 ## API Reference
 
 ### Chat Functions
 
 ```python
-from chat_my_doc_app.chats import chat_with_gemini_stream, get_available_models
+from chat_my_doc_app.chats import chat_with_llm_astream, chat_with_rag_astream, get_available_models
 
-# Stream chat responses
-for chunk in chat_with_gemini_stream(
+# Stream chat responses with Gemini
+async for chunk in chat_with_llm_astream(
     message="Hello, how are you?",
     model_name="gemini-2.0-flash-lite",
     session_id="user_123"
 ):
     print(chunk, end="")
 
+# Stream chat responses with Mistral
+async for chunk in chat_with_llm_astream(
+    message="Hello, how are you?",
+    model_name="mistral-7b-instruct",
+    session_id="user_123"
+):
+    print(chunk, end="")
+
+# RAG-enhanced responses (works with any model)
+async for chunk in chat_with_rag_astream(
+    message="Tell me about action movies",
+    model_name="gemini-2.0-flash-lite",  # or "mistral-7b-instruct"
+    session_id="user_123"
+):
+    print(chunk, end="")
+
 # Get available models
-models = get_available_models()
+models = get_available_models()  # Returns both Gemini and Mistral models
 ```
 
-### Custom LangChain Model
+### Custom LangChain Models
 
 ```python
-from chat_my_doc_app.llms import GeminiChat
+from chat_my_doc_app.llms import GeminiChat, MistralChat
+from chat_my_doc_app.rag import RAGImdb
 
-# Initialize custom model
-llm = GeminiChat(
-    api_url="https://your-api-endpoint.run.app",
+# Initialize Gemini model
+gemini_llm = GeminiChat(
     model_name="gemini-2.0-flash-lite"
 )
 
-# Use with LangChain
-response = llm.invoke("What is the capital of France?")
+# Initialize Mistral model
+mistral_llm = MistralChat()
+
+# Use directly with LangChain
+response = gemini_llm.invoke("What is the capital of France?")
+
+# Use with RAG system (model-agnostic)
+rag_system = RAGImdb(chat_model=gemini_llm)  # or mistral_llm
+result = rag_system.process_query("Tell me about action movies")
+
+# Stream responses
+async for chunk in gemini_llm.astream(messages):
+    print(chunk.content, end="")
 ```
 
 ## Contributing

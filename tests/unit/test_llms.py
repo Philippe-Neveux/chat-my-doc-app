@@ -7,7 +7,7 @@ import pytest
 import requests
 from langchain_core.messages import AIMessage, HumanMessage
 
-from chat_my_doc_app.llms import GeminiChat
+from chat_my_doc_app.llms import GeminiChat, MistralChat
 
 
 class TestGeminiChat:
@@ -222,3 +222,94 @@ class TestGeminiChatIntegration:
             # Check that the custom model name was used
             call_args = mock_post.call_args
             assert call_args[1]['json']['model_name'] == "custom-model"
+
+
+class TestMistralChat:
+    """Test suite for MistralChat class."""
+
+    def setup_method(self):
+        """Set up test fixtures before each test method."""
+        self.api_url = "https://test-api.example.com"
+        self.llm = MistralChat(api_url=self.api_url)
+
+    def test_initialization(self):
+        """Test MistralChat initialization."""
+        assert self.llm.api_url == self.api_url
+        assert self.llm.system_prompt == "You are a helpful assistant."
+
+    def test_initialization_with_custom_system_prompt(self):
+        """Test MistralChat initialization with custom system prompt."""
+        custom_prompt = "You are a coding assistant."
+        llm = MistralChat(api_url=self.api_url, system_prompt=custom_prompt)
+        assert llm.system_prompt == custom_prompt
+
+    def test_llm_type_property(self):
+        """Test the _llm_type property returns correct value."""
+        assert self.llm._llm_type == "mistral_chat"
+
+    def test_endpoint_paths(self):
+        """Test the endpoint path properties."""
+        assert self.llm._endpoint_path == "/mistral"
+        assert self.llm._stream_endpoint_path == "/mistral-stream"
+
+    def test_identifying_params(self):
+        """Test the _identifying_params property."""
+        params = self.llm._identifying_params
+        assert params["api_url"] == self.api_url
+        assert params["model_name"] is None  # MistralChat doesn't set a default model_name
+
+    @patch('requests.post')
+    def test_generate_success(self, mock_post):
+        """Test successful _generate call."""
+        # Mock successful response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "message": "Hello, this is a Mistral response"
+        }
+        mock_post.return_value = mock_response
+
+        messages = [HumanMessage(content="test prompt")]
+        result = self.llm._generate(messages)
+
+        assert len(result.generations) == 1
+        assert result.generations[0].message.content == "Hello, this is a Mistral response"
+        mock_post.assert_called_once_with(
+            f"{self.api_url}/mistral",
+            json={"prompt": "System: You are a helpful assistant.\nHuman: test prompt"},
+            headers={"Content-Type": "application/json"}
+        )
+
+    @patch('requests.post')
+    def test_stream_success(self, mock_post):
+        """Test successful _stream call."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.iter_content.return_value = ["Bonjour", " monde", "!"]
+        mock_post.return_value = mock_response
+
+        messages = [HumanMessage(content="test prompt")]
+        chunks = list(self.llm._stream(messages))
+
+        assert len(chunks) == 3
+        assert chunks[0].message.content == "Bonjour"
+        assert chunks[1].message.content == " monde"
+        assert chunks[2].message.content == "!"
+        mock_post.assert_called_once_with(
+            f"{self.api_url}/mistral-stream",
+            json={"prompt": "System: You are a helpful assistant.\nHuman: test prompt"},
+            headers={"Content-Type": "application/json"},
+            stream=True
+        )
+
+    def test_langchain_compatibility(self):
+        """Test that MistralChat is compatible with LangChain interfaces."""
+        # Test that it has required LangChain BaseChatModel attributes/methods
+        assert hasattr(self.llm, '_generate')
+        assert hasattr(self.llm, '_stream')
+        assert hasattr(self.llm, '_astream')
+        assert hasattr(self.llm, '_llm_type')
+        assert hasattr(self.llm, '_identifying_params')
+        assert callable(self.llm._generate)
+        assert callable(self.llm._stream)
+        assert isinstance(self.llm._llm_type, str)

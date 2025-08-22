@@ -395,48 +395,48 @@ class TestRAGImdbIntegration:
     def test_rag_initialization_with_config(self):
         """Test workflow can be initialized with real config."""
         # Mock the LLM to avoid requiring API access
-        with patch('chat_my_doc_app.rag.GeminiChat') as mock_gemini:
-            mock_llm = Mock()
-            mock_gemini.return_value = mock_llm
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm = Mock(spec=GeminiChat)
+        mock_llm.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
+        rag = RAGImdb(mock_llm, self.config)
 
-            assert rag.config is not None
-            assert rag.rag_service is not None
-            assert rag.llm is not None
-            assert rag.workflow is not None
+        assert rag.config is not None
+        assert rag.rag_service is not None
+        assert rag.llm is not None
+        assert rag.workflow is not None
 
     def test_factory_function_with_config(self):
         """Test factory function works with real config."""
-        with patch('chat_my_doc_app.rag.GeminiChat') as mock_gemini:
-            mock_llm = Mock()
-            mock_gemini.return_value = mock_llm
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm = Mock(spec=GeminiChat)
+        mock_llm.system_prompt = "You are a helpful assistant."
 
-            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
+        rag = RAGImdb(mock_llm, self.config)
 
-            assert isinstance(rag, RAGImdb)
-            assert rag.config == self.config
+        assert isinstance(rag, RAGImdb)
+        assert rag.config == self.config
 
     @pytest.mark.slow
     def test_rag_nodes_with_rag_service(self):
         """Test rag nodes work with real RAG service (mock LLM)."""
         # Mock only the LLM to test RAG service integration
-        with patch('chat_my_doc_app.rag.GeminiChat') as mock_gemini:
-            # Setup LLM mock
-            mock_generation = Mock()
-            mock_generation.message.content = "This is a test response about movies."
-            mock_result = Mock()
-            mock_result.generations = [mock_generation]
+        # Setup LLM mock
+        mock_generation = Mock()
+        mock_generation.message.content = "This is a test response about movies."
+        mock_result = Mock()
+        mock_result.generations = [mock_generation]
 
-            mock_llm = Mock()
-            mock_llm._generate.return_value = mock_result
-            mock_gemini.return_value = mock_llm
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm = Mock(spec=GeminiChat)
+        mock_llm.system_prompt = "You are a helpful assistant."
+        mock_llm._generate.return_value = mock_result
 
-            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
+        rag = RAGImdb(mock_llm, self.config)
 
-            # Test retrieve node (will use real RAG service)
-            try:
-                initial_state = RAGImdbState({
+        # Test retrieve node (will use real RAG service)
+        try:
+            initial_state = RAGImdbState({
                     'query': 'action movies',
                     'context': '',
                     'citations': [],
@@ -444,50 +444,53 @@ class TestRAGImdbIntegration:
                     'metadata': {}
                 })
 
-                # This will call the real RAG service
-                retrieve_result = rag.retrieve_node(initial_state)
+            # This will call the real RAG service
+            retrieve_result = rag.retrieve_node(initial_state)
 
-                # Should have some context (even if empty results)
-                assert 'context' in retrieve_result
-                assert isinstance(retrieve_result['context'], str)
-                assert 'citations' in retrieve_result
-                assert isinstance(retrieve_result['citations'], list)
+            # Should have some context (even if empty results)
+            assert 'context' in retrieve_result
+            assert isinstance(retrieve_result['context'], str)
+            assert 'citations' in retrieve_result
+            assert isinstance(retrieve_result['citations'], list)
 
-                # Test generate node with retrieved context
-                if retrieve_result['context']:
-                    generate_result = rag.generate_node(retrieve_result)
+            # Test generate node with retrieved context
+            if retrieve_result['context']:
+                generate_result = rag.generate_node(retrieve_result)
 
-                    assert 'response' in generate_result
-                    assert generate_result['response'] == "This is a test response about movies."
-                    assert generate_result['metadata']['generated'] is True
+                assert 'response' in generate_result
+                assert generate_result['response'] == "This is a test response about movies."
+                assert generate_result['metadata']['generated'] is True
 
-                    # Test respond node
-                    respond_result = rag.respond_node(generate_result)
+                # Test respond node
+                respond_result = rag.respond_node(generate_result)
 
-                    assert 'response' in respond_result
-                    assert isinstance(respond_result['response'], str)
+                assert 'response' in respond_result
+                assert isinstance(respond_result['response'], str)
 
-            except Exception as e:
-                # If Qdrant is not available, skip this test
-                pytest.skip(f"Qdrant service not available: {e}")
+        except Exception as e:
+            # If Qdrant is not available, skip this test
+            pytest.skip(f"Qdrant service not available: {e}")
 
     def test_rag_configuration_loading(self):
         """Test that rag loads configuration correctly."""
-        with patch('chat_my_doc_app.rag.GeminiChat') as mock_gemini:
-            mock_llm = Mock()
-            mock_gemini.return_value = mock_llm
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm = Mock(spec=GeminiChat)
+        mock_llm.system_prompt = "You are a helpful assistant."
+        mock_llm.api_url = "http://test-api.example.com"
+        mock_llm.model_name = "gemini-2.0-flash-lite"
+        mock_llm._llm_type = "GeminiChat"
 
-            rag = RAGImdb("gemini-2.0-flash-lite", self.config)
+        rag = RAGImdb(mock_llm, self.config)
 
-            # Check that config values are loaded
-            assert rag.config.get('qdrant', {}).get('collection_name') == 'imdb_reviews'
-            assert rag.config.get('embedding', {}).get('model_name') == 'all-MiniLM-L6-v2'
-            assert rag.rag_config.get('max_context_length') == 4000
+        # Check that config values are loaded
+        assert rag.config.get('qdrant', {}).get('collection_name') == 'imdb_reviews'
+        assert rag.config.get('embedding', {}).get('model_name') == 'all-MiniLM-L6-v2'
+        assert rag.rag_config.get('max_context_length') == 4000
 
-            # Check rag info
-            info = rag.get_workflow_info()
-            assert info['workflow_type'] == "RAG with LangGraph"
-            assert len(info['nodes']) == 3
+        # Check rag info
+        info = rag.get_workflow_info()
+        assert info['workflow_type'] == "RAG with LangGraph"
+        assert len(info['nodes']) == 3
 
     def test_rag_with_mock_llm_and_rag(self):
         """Test complete rag with both LLM and RAG service mocked."""
@@ -534,8 +537,7 @@ class TestRAGImdbIntegration:
             assert result['metadata'].get('workflow_started') is True
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_process_query_success(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_process_query_success(self, mock_rag_service, sample_config_rag):
         """Test successful query processing through the rag."""
         # Setup mocks
         mock_rag_instance = Mock()
@@ -550,11 +552,12 @@ class TestRAGImdbIntegration:
         mock_result = Mock()
         mock_result.generations = [mock_generation]
 
-        mock_llm_instance = Mock()
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
         mock_llm_instance._generate.return_value = mock_result
-        mock_gemini.return_value = mock_llm_instance
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         # Process a query
         result = rag.process_query("What are good movies?")
@@ -572,18 +575,18 @@ class TestRAGImdbIntegration:
         assert result['metadata']['workflow_started'] is True
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_process_query_with_error(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_process_query_with_error(self, mock_rag_service, sample_config_rag):
         """Test query processing with errors."""
         # Setup mocks to raise exception
         mock_rag_instance = Mock()
         mock_rag_instance.retrieve_context.side_effect = Exception("RAG service error")
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         result = rag.process_query("test query")
 
@@ -596,16 +599,16 @@ class TestRAGImdbIntegration:
         assert result['response'] is not None
 
     @patch('chat_my_doc_app.rag.RetrievalService')
-    @patch('chat_my_doc_app.rag.GeminiChat')
-    def test_node_error_handling(self, mock_gemini, mock_rag_service, sample_config_rag):
+    def test_node_error_handling(self, mock_rag_service, sample_config_rag):
         """Test individual node error handling."""
         mock_rag_instance = Mock()
         mock_rag_service.return_value = mock_rag_instance
 
-        mock_llm_instance = Mock()
-        mock_gemini.return_value = mock_llm_instance
+        from chat_my_doc_app.llms import GeminiChat
+        mock_llm_instance = Mock(spec=GeminiChat)
+        mock_llm_instance.system_prompt = "You are a helpful assistant."
 
-        rag = RAGImdb("gemini-2.0-flash-lite", sample_config_rag)
+        rag = RAGImdb(mock_llm_instance, sample_config_rag)
 
         # Test retrieve node error handling
         mock_rag_instance.retrieve_context.side_effect = Exception("Retrieve error")

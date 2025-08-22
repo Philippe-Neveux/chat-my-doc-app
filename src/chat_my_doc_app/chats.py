@@ -14,7 +14,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph, add_messages
 from loguru import logger
 
-from chat_my_doc_app.llms import GeminiChat
+from chat_my_doc_app.llms import GeminiChat, MistralChat
 from chat_my_doc_app.rag import RAGImdb
 
 load_dotenv()
@@ -39,11 +39,15 @@ async def chat_node(state: State, config: RunnableConfig) -> State:
     logger.debug(f"Using model: {model_name}")
     logger.debug(f"System prompt: {system_prompt}")
 
-    # Configure the custom LangChain model (GeminiChat will get API URL from environment)
-    llm = GeminiChat(
-        model_name=model_name,
-        system_prompt=system_prompt
-    )
+    # Determine which chat model to use based on model_name
+    if model_name.lower() == "mistral-7b-instruct":
+        llm = MistralChat(system_prompt=system_prompt)
+    else:
+        # Default to Gemini for all other models
+        llm = GeminiChat(
+            model_name=model_name,
+            system_prompt=system_prompt
+        )
 
     # Generate response using all messages as context (async)
     response = await llm.ainvoke(state["messages"], config)
@@ -59,7 +63,7 @@ graph = (
     .add_edge("chat", END)
 ).compile(checkpointer=checkpointer)
 
-async def chat_with_gemini_astream(
+async def chat_with_llm_astream(
     message: str,
     model_name: str,
     session_id: str = "default",
@@ -135,11 +139,16 @@ async def chat_with_rag_astream(
         str: Streaming response chunks
     """
     try:
-        # Initialize RAG workflow with GeminiChat instance
-        chat_model = GeminiChat(
-            model_name=model_name,
-            system_prompt=system_prompt
-        )
+        # Determine which chat model to use based on model_name
+        if model_name.lower() == "mistral-7b-instruct":
+            chat_model = MistralChat(system_prompt=system_prompt)
+        else:
+            # Default to Gemini for all other models
+            chat_model = GeminiChat(
+                model_name=model_name,
+                system_prompt=system_prompt
+            )
+
         rag_workflow = RAGImdb(chat_model)
 
         # Use the RAGImdb streaming method instead of manual implementation
@@ -182,11 +191,12 @@ def clear_conversation_history(session_id: str) -> None:
     logger.debug(f"Current state after clearing: {graph.get_state(config)}")
 
 def get_available_models() -> List[str]:
-    """Get list of available Gemini models."""
+    """Get list of available models from both Gemini and Mistral."""
     return [
         "gemini-2.0-flash-lite",
         "gemini-2.0-flash",
-        "gemini-1.5-pro"
+        "gemini-1.5-pro",
+        "mistral-7b-instruct",
     ]
 
 
