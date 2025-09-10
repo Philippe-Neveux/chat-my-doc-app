@@ -50,6 +50,16 @@ In this application you can chat with the LLM to get review insights on films wh
 ![architecture](docs/chat_my_doc_archi.png)
 
 
+The complete chat-my-doc system consists of four specialized repositories:
+
+- **[chat-my-doc-app](https://github.com/Philippe-Neveux/chat-my-doc-app)**: Gradio-based web application providing an intuitive chat interface for users to interact with AI models and explore IMDB movie reviews through conversational queries.
+
+- **[chat-my-doc-data](https://github.com/Philippe-Neveux/chat-my-doc-data)**: Data processing pipeline that extracts IMDB movie reviews from Kaggle datasets and ingests them into a Qdrant vector database hosted on Google Cloud Engine for efficient similarity search.
+
+- **[chat-my-doc-llms](https://github.com/Philippe-Neveux/chat-my-doc-llms)**: FastAPI-based LLM gateway service that provides unified access to multiple AI models, including Google's Gemini API and a self-hosted Mistral model deployed on Google Cloud Engine.
+
+- **[chat-my-doc-infra](https://github.com/Philippe-Neveux/chat-my-doc-infra)**: Infrastructure as Code (Terraform) repository containing all Google Cloud Platform infrastructure definitions, enabling reproducible and scalable deployment of the entire system.
+
 ## Quick Start
 
 ### Prerequisites
