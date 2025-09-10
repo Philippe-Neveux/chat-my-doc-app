@@ -45,6 +45,11 @@ In this application you can chat with the LLM to get review insights on films wh
 - **Cloud Ready**: Docker support with Google Cloud Run deployment
 - **Development Tools**: Hot-reload, debug mode, and development utilities
 
+## Architecture
+
+![architecture](docs/chat_my_doc_archi.png)
+
+
 ## Quick Start
 
 ### Prerequisites
